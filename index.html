@@ -1,0 +1,3854 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>课表提醒助手</title>
+<style>
+/* ========== CSS 变量 / 主题 ========== */
+:root {
+  --primary: #4A90D9;
+  --primary-light: #E8F1FB;
+  --primary-dark: #3A7BC8;
+  --accent: #FF6B6B;
+  --accent-light: #FFE8E8;
+  --success: #52C41A;
+  --success-light: #F0FBEB;
+  --warning: #FAAD14;
+  --warning-light: #FFF7E6;
+  --bg: #F5F7FA;
+  --card: #FFFFFF;
+  --text: #1A1A2E;
+  --text-secondary: #8C8C9A;
+  --text-light: #BFBFC9;
+  --border: #EBEBEF;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ========== 全局重置 ========== */
+* { margin:0; padding:0; box-sizing:border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: calc(70px + var(--safe-bottom));
+  overflow-x: hidden;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+input, select, textarea { font-family: inherit; font-size: inherit; }
+ul { list-style: none; }
+
+/* ========== 顶部导航 ========== */
+.nav-bar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+}
+.nav-bar .logo { font-size: 18px; font-weight: 700; color: var(--primary); }
+.nav-bar .logo span { color: var(--text); }
+.nav-date { font-size: 13px; color: var(--text-secondary); }
+
+/* ========== 底部 Tab 栏 ========== */
+.tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  display: flex;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--safe-bottom);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+}
+.tab-item {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 0 8px;
+  color: var(--text-light);
+  transition: color .2s;
+}
+.tab-item.active { color: var(--primary); }
+.tab-item .tab-icon { font-size: 22px; line-height: 1; }
+.tab-item .tab-label { font-size: 11px; font-weight: 500; }
+
+/* ========== 视图容器 ========== */
+.view { display: none; padding: 16px; }
+.view.active { display: block; animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+/* ========== 卡片 ========== */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.card-title {
+  font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.card-title .icon { font-size: 18px; margin-right: 6px; }
+
+/* ========== 今日概览页 ========== */
+.today-hero {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  color: #fff;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(74,144,217,0.3);
+}
+.today-hero .hero-date { font-size: 14px; opacity: .85; margin-bottom: 4px; }
+.today-hero .hero-weekday { font-size: 28px; font-weight: 800; margin-bottom: 6px; }
+.today-hero .hero-week { font-size: 13px; opacity: .8; }
+.today-hero .hero-next {
+  margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,.2);
+  font-size: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.today-hero .hero-next .countdown {
+  font-size: 20px; font-weight: 800;
+  background: rgba(255,255,255,.2);
+  padding: 4px 12px; border-radius: 20px;
+}
+.today-hero .hero-next .no-class { opacity: .8; font-size: 14px; }
+
+.course-item-today {
+  display: flex; align-items: stretch; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.course-item-today:last-child { border-bottom: none; }
+.course-item-today .time-col {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 56px; padding-top: 2px;
+}
+.course-item-today .time-col .start { font-size: 14px; font-weight: 700; color: var(--text); }
+.course-item-today .time-col .end { font-size: 11px; color: var(--text-light); }
+.course-item-today .color-bar { width: 4px; border-radius: 2px; flex-shrink: 0; }
+.course-item-today .info-col { flex: 1; min-width: 0; }
+.course-item-today .info-col .name { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+.course-item-today .info-col .meta { font-size: 12px; color: var(--text-secondary); display: flex; gap: 12px; flex-wrap: wrap; }
+.course-item-today .status-badge {
+  font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 600;
+  align-self: center; white-space: nowrap;
+}
+.status-badge.ongoing { background: var(--success-light); color: var(--success); }
+.status-badge.upcoming { background: var(--primary-light); color: var(--primary); }
+.status-badge.done { background: #F5F5F5; color: var(--text-light); }
+
+.reminder-item-today {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.reminder-item-today:last-child { border-bottom: none; }
+.reminder-item-today .check {
+  width: 22px; height: 22px; border: 2px solid var(--border);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; cursor: pointer; transition: all .2s;
+  font-size: 12px; color: transparent;
+}
+.reminder-item-today .check.done { background: var(--success); border-color: var(--success); color: #fff; }
+.reminder-item-today .ri-content { flex: 1; min-width: 0; }
+.reminder-item-today .ri-title { font-size: 14px; font-weight: 500; }
+.reminder-item-today .ri-title.done { text-decoration: line-through; color: var(--text-light); }
+.reminder-item-today .ri-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.reminder-item-today .ri-tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500;
+}
+.tag-exam { background: var(--accent-light); color: var(--accent); }
+.tag-homework { background: var(--primary-light); color: var(--primary); }
+.tag-activity { background: var(--success-light); color: var(--success); }
+.tag-personal { background: var(--warning-light); color: var(--warning); }
+
+.empty-state {
+  text-align: center; padding: 32px 16px; color: var(--text-light);
+}
+.empty-state .emoji { font-size: 40px; margin-bottom: 8px; }
+.empty-state .text { font-size: 14px; }
+
+/* ========== 课表页 ========== */
+.schedule-week-label {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.schedule-week-label .week-text { font-size: 16px; font-weight: 700; }
+.schedule-week-label .week-nav { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.schedule-week-label .week-nav button {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  white-space: nowrap;
+}
+.schedule-week-label .week-nav button:active { background: var(--primary-light); }
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+  gap: 2px;
+  background: var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  font-size: 12px;
+}
+.schedule-grid .sg-header {
+  background: var(--card);
+  padding: 8px 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.schedule-grid .sg-header .day-name { color: var(--text-secondary); }
+.schedule-grid .sg-header.today { background: var(--primary); color: #fff; }
+.schedule-grid .sg-header.today .day-name { color: rgba(255,255,255,.8); }
+.schedule-grid .sg-slot-num {
+  background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-height: 56px;
+  padding: 2px 1px;
+}
+.schedule-grid .sg-slot-num .slot-n { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.schedule-grid .sg-slot-num .slot-t { font-size: 9px; color: var(--text-light); line-height: 1.2; }
+.schedule-grid .sg-break {
+  grid-column: 1 / -1;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 4px 0;
+  font-size: 10px;
+  color: var(--text-light);
+  font-weight: 500;
+  letter-spacing: 4px;
+  border-left: 2px solid var(--border);
+  border-right: 2px solid var(--border);
+}
+.schedule-grid .sg-cell {
+  background: var(--card);
+  min-height: 56px;
+  position: relative;
+  cursor: pointer;
+  transition: background .15s;
+}
+.schedule-grid .sg-cell:active { background: var(--bg); }
+.schedule-grid .sg-cell.has-course {
+  background: transparent;
+}
+.schedule-grid .sg-course {
+  position: absolute; top: 1px; left: 1px; right: 1px; bottom: 1px;
+  border-radius: 6px;
+  padding: 3px 3px;
+  font-size: 11px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex; flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+  gap: 1px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.schedule-grid .sg-course .sg-c-name {
+  font-weight: 700; font-size: 10px;
+  line-height: 1.3;
+  word-break: break-all;
+  display: block;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.schedule-grid .sg-course .sg-c-loc {
+  font-size: 9px; opacity: .9;
+  line-height: 1.2;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.schedule-grid .sg-course .sg-c-teacher {
+  font-size: 9px; opacity: .75;
+  line-height: 1.2;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.schedule-grid .sg-header {
+  background: var(--card);
+  padding: 8px 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.schedule-grid .sg-header .day-name { color: var(--text-secondary); }
+.schedule-grid .sg-header.today { background: var(--primary); color: #fff; }
+.schedule-grid .sg-header.today .day-name { color: rgba(255,255,255,.8); }
+/* 课程方块上下边缘拖拽手柄 */
+.schedule-grid .sg-course .sg-handle-top {
+  position: absolute; top: 0; left: 0; right: 0; height: 7px;
+  cursor: ns-resize; z-index: 5;
+}
+.schedule-grid .sg-course .sg-handle-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 7px;
+  cursor: ns-resize; z-index: 5;
+}
+
+/* 拖拽中的视觉反馈 */
+.schedule-grid .sg-course.dragging {
+  opacity: 0.25;
+}
+.schedule-grid .sg-course.dragging-pulse {
+  transform: scale(1.08);
+  z-index: 50;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  opacity: 0.9;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+.schedule-grid .sg-course.resizing {
+  opacity: 0.8;
+}
+.schedule-grid .sg-cell.drag-target {
+  background: var(--primary-light);
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+}
+.schedule-grid .sg-cell.drag-target-has-course {
+  background: var(--warning-light);
+  outline: 2px dashed var(--warning);
+  outline-offset: -2px;
+}
+
+/* 跟随鼠标的浮动课程块 */
+.drag-float {
+  position: fixed;
+  pointer-events: none;
+  z-index: 999;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  color: #fff;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+  opacity: 0.9;
+  transform: scale(1.06);
+  transition: opacity 0.1s;
+}
+.drag-float .df-name { font-weight: 600; font-size: 11px; white-space: nowrap; }
+.drag-float .df-loc { font-size: 10px; opacity: 0.85; white-space: nowrap; }
+
+/* 放置成功的脉冲动画 */
+@keyframes dropPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74,144,217,0.5); }
+  40% { transform: scale(1.12); box-shadow: 0 0 0 10px rgba(74,144,217,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74,144,217,0); }
+}
+.schedule-grid .sg-course.dropped {
+  animation: dropPulse 0.5s ease;
+}
+
+/* 放置位置的闪烁高亮 */
+@keyframes slotFlash {
+  0%, 100% { background: var(--primary-light); }
+  50% { background: rgba(74,144,217,0.25); }
+}
+.schedule-grid .sg-cell.drop-flash {
+  animation: slotFlash 0.5s ease;
+}
+
+/* 桌面端课表横向滚动优化 */
+@media (min-width: 768px) {
+  .schedule-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* 窄屏课表缩小字体适配 */
+@media (max-width: 400px) {
+  .schedule-grid { font-size: 10px; }
+  .schedule-grid .sg-slot-num .slot-n { font-size: 12px; }
+  .schedule-grid .sg-slot-num .slot-t { font-size: 8px; }
+  .schedule-grid .sg-course .sg-c-name { font-size: 9px; }
+  .schedule-grid .sg-course .sg-c-loc { font-size: 8px; }
+  .schedule-grid .sg-course .sg-c-teacher { font-size: 8px; }
+}
+
+/* ========== OCR 截图导入 ========== */
+.ocr-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px;
+  background: var(--primary); color: #fff;
+  font-size: 13px; font-weight: 500;
+  box-shadow: 0 2px 8px rgba(74,144,217,0.3);
+  transition: opacity .15s;
+}
+.ocr-btn:active { opacity: .85; }
+.ocr-btn .icon { font-size: 16px; }
+
+.ocr-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 16px;
+}
+.ocr-upload-area:hover { border-color: var(--primary); background: var(--primary-light); }
+.ocr-upload-area .upload-icon { font-size: 36px; margin-bottom: 8px; }
+.ocr-upload-area .upload-text { font-size: 14px; color: var(--text-secondary); }
+.ocr-upload-area .upload-hint { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+.ocr-preview-img {
+  width: 100%; max-height: 240px; object-fit: contain;
+  border-radius: var(--radius-sm); margin-bottom: 14px;
+  border: 1px solid var(--border);
+}
+
+.ocr-loading {
+  text-align: center; padding: 30px 16px;
+}
+.ocr-loading .spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.ocr-loading .text { font-size: 14px; color: var(--text-secondary); }
+.ocr-progress {
+  width: 100%; height: 6px; background: var(--border);
+  border-radius: 3px; margin-top: 12px; overflow: hidden;
+}
+.ocr-progress-bar {
+  height: 100%; background: var(--primary);
+  border-radius: 3px; transition: width .3s;
+}
+
+.ocr-results { margin-top: 8px; }
+.ocr-result-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.ocr-result-item.incomplete { border-color: var(--warning); background: var(--warning-light); }
+.ocr-result-item .ori-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.ocr-result-item .ori-index { font-size: 13px; font-weight: 600; color: var(--primary); }
+.ocr-result-item .ori-warning { font-size: 12px; color: var(--warning); font-weight: 500; }
+.ocr-result-item .ori-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ocr-result-item .ori-field { display: flex; flex-direction: column; gap: 3px; }
+.ocr-result-item .ori-field-full { grid-column: 1 / -1; }
+.ocr-result-item .ori-label { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+.ocr-result-item .ori-input {
+  padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 13px; outline: none;
+  transition: border-color .2s; background: var(--card);
+}
+.ocr-result-item .ori-input:focus { border-color: var(--primary); }
+.ocr-result-item .ori-input.empty { border-color: var(--warning); background: var(--warning-light); }
+.ocr-result-item .ori-actions { display: flex; gap: 8px; margin-top: 10px; }
+.ocr-result-item .ori-actions button {
+  font-size: 12px; padding: 4px 12px; border-radius: 6px;
+  border: 1px solid var(--border); color: var(--text-secondary);
+  transition: all .15s;
+}
+.ocr-result-item .ori-actions button:active { background: var(--bg); }
+.ocr-result-item .ori-actions .del-btn { color: var(--accent); border-color: var(--accent-light); }
+
+.ocr-summary {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: var(--primary-light);
+  border-radius: var(--radius-sm); margin-bottom: 12px;
+}
+.ocr-summary .stat { font-size: 13px; color: var(--text-secondary); }
+.ocr-summary .stat strong { color: var(--primary); font-size: 16px; }
+
+.ocr-raw-text {
+  margin-top: 14px; padding: 12px;
+  background: var(--bg); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-secondary);
+  max-height: 120px; overflow-y: auto;
+  white-space: pre-wrap; line-height: 1.5;
+  display: none;
+}
+.ocr-raw-text.show { display: block; }
+.ocr-toggle-raw {
+  font-size: 12px; color: var(--primary); cursor: pointer;
+  margin-top: 8px; display: inline-block;
+}
+
+/* ========== 单课粘贴截图识别 ========== */
+.paste-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 14px;
+  position: relative;
+  min-height: 60px;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 4px;
+}
+.paste-zone:hover { border-color: var(--primary); background: var(--primary-light); }
+.paste-zone.dragover { border-color: var(--primary); background: var(--primary-light); }
+.paste-zone .pz-icon { font-size: 24px; }
+.paste-zone .pz-text { font-size: 13px; color: var(--text-secondary); }
+.paste-zone .pz-hint { font-size: 11px; color: var(--text-light); }
+.paste-zone.loading { pointer-events: none; }
+.paste-zone.loading .pz-icon { animation: spin 0.8s linear infinite; }
+.paste-preview { max-width: 100%; max-height: 120px; border-radius: 6px; margin-top: 8px; }
+
+/* ========== 提醒事项页 ========== */
+.reminder-filters {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding-bottom: 8px; margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.reminder-filters::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex-shrink: 0;
+  padding: 6px 16px; border-radius: 20px;
+  font-size: 13px; font-weight: 500;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--text-secondary);
+  transition: all .2s;
+}
+.filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.reminder-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px;
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  margin-bottom: 10px;
+}
+.reminder-item .check {
+  width: 22px; height: 22px; border: 2px solid var(--border);
+  border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .2s; font-size: 12px; color: transparent;
+}
+.reminder-item .check.done { background: var(--success); border-color: var(--success); color: #fff; }
+.reminder-item .ri-body { flex: 1; min-width: 0; }
+.reminder-item .ri-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.reminder-item .ri-title { font-size: 15px; font-weight: 600; }
+.reminder-item .ri-title.done { text-decoration: line-through; color: var(--text-light); }
+.reminder-item .ri-actions { display: flex; gap: 6px; }
+.reminder-item .ri-actions button {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--text-light);
+  transition: all .15s;
+}
+.reminder-item .ri-actions button:active { background: var(--bg); color: var(--text); }
+.reminder-item .ri-bottom { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+.reminder-item .ri-date { font-size: 12px; color: var(--text-secondary); }
+.reminder-item .ri-note { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.reminder-item .ri-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
+.reminder-item.urgent { border-left: 3px solid var(--accent); }
+
+/* ========== 设置页 ========== */
+.settings-group { margin-bottom: 20px; }
+.settings-group .sg-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; padding-left: 4px; font-weight: 500; }
+.settings-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--card); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  margin-bottom: 8px;
+}
+.settings-item .si-label { font-size: 15px; font-weight: 500; }
+.settings-item .si-value { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.settings-item .si-arrow { color: var(--text-light); }
+.settings-item button { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+.settings-item .btn-export { background: var(--primary-light); color: var(--primary); }
+.settings-item .btn-import { background: var(--success-light); color: var(--success); }
+.settings-item .btn-danger { background: var(--accent-light); color: var(--accent); }
+
+.settings-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  margin-bottom: 10px;
+  outline: none;
+  transition: border-color .2s;
+}
+.settings-input:focus { border-color: var(--primary); }
+
+.settings-section {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 16px; margin-bottom: 14px;
+}
+.settings-section h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+
+.about-text { font-size: 13px; color: var(--text-secondary); line-height: 1.8; }
+.about-text strong { color: var(--text); }
+
+/* ========== 浮动添加按钮 ========== */
+.fab {
+  position: fixed;
+  bottom: calc(80px + var(--safe-bottom));
+  right: 20px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 26px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(74,144,217,0.4);
+  z-index: 90;
+  transition: transform .15s;
+}
+.fab:active { transform: scale(0.92); }
+
+/* ========== 模态框 ========== */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 16px;
+}
+.modal-overlay.show { display: flex; animation: fadeBg .2s ease; }
+@keyframes fadeBg { from { opacity:0; } to { opacity:1; } }
+
+.modal-content {
+  background: var(--card);
+  width: 100%; max-width: 480px;
+  border-radius: 20px;
+  padding: 20px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: slideUp .3s ease;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+}
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+@media (min-width: 768px) {
+  .modal-content { border-radius: 20px; }
+}
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.modal-header h2 { font-size: 18px; font-weight: 700; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--bg); color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; transition: all .15s;
+}
+.modal-close:active { background: var(--border); }
+
+/* ========== 表单 ========== */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  outline: none;
+  transition: border-color .2s;
+  background: var(--card);
+  color: var(--text);
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); }
+.form-textarea { resize: vertical; min-height: 70px; }
+.form-row { display: flex; gap: 12px; }
+.form-row .form-group { flex: 1; }
+
+.color-picker { display: flex; gap: 10px; flex-wrap: wrap; }
+.color-dot {
+  width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: all .15s;
+}
+.color-dot.selected { border-color: var(--text); transform: scale(1.1); }
+
+.tag-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.tag-option {
+  padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  border: 1.5px solid var(--border); cursor: pointer; transition: all .15s;
+}
+.tag-option.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.btn-primary {
+  width: 100%; padding: 14px;
+  background: var(--primary); color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 16px; font-weight: 600;
+  transition: opacity .15s;
+}
+.btn-primary:active { opacity: .85; }
+.btn-danger-text {
+  width: 100%; padding: 12px;
+  color: var(--accent); font-size: 15px; font-weight: 500;
+  margin-top: 8px;
+}
+
+/* ========== Toast ========== */
+.toast {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.8); color: #fff;
+  padding: 10px 24px; border-radius: 24px;
+  font-size: 14px; z-index: 300;
+  opacity: 0; transition: opacity .3s, transform .3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ========== 桌面端适配 ========== */
+.week-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  background: var(--bg); color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  cursor: pointer; transition: all .15s;
+  user-select: none;
+}
+.week-chip.active {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+
+@media (min-width: 768px) {
+  body { max-width: 480px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,0.08); min-height: 100vh; }
+  .tab-bar { left: 50%; right: auto; transform: translateX(-50%); width: 480px; }
+  .fab { right: calc(50% - 240px + 20px); }
+  .modal-overlay { left: 50%; right: auto; transform: translateX(-50%); width: 480px; max-width: 480px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ========== 顶部导航 ========== -->
+<nav class="nav-bar">
+  <div class="logo">📅 <span>课表提醒助手</span></div>
+  <div class="nav-date" id="navDate"></div>
+</nav>
+
+<!-- ========== 今日概览 ========== -->
+<div class="view active" id="view-today">
+  <div class="today-hero" id="todayHero">
+    <div class="hero-date" id="heroDate"></div>
+    <div class="hero-weekday" id="heroWeekday"></div>
+    <div class="hero-week" id="heroWeek"></div>
+    <div class="hero-next" id="heroNext"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span><span class="icon">📚</span>今日课程</span>
+      <span id="todayCourseCount" style="font-size:13px;color:var(--text-secondary);font-weight:400;"></span>
+    </div>
+    <div id="todayCourseList">
+      <div class="empty-state">
+        <div class="emoji">🎉</div>
+        <div class="text">今天没有课，享受自由时光吧！</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span><span class="icon">📌</span>今日提醒</span>
+      <span id="todayReminderCount" style="font-size:13px;color:var(--text-secondary);font-weight:400;"></span>
+    </div>
+    <div id="todayReminderList">
+      <div class="empty-state">
+        <div class="emoji">✨</div>
+        <div class="text">今天没有待办事项</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 课表管理 ========== -->
+<div class="view" id="view-schedule">
+  <div class="schedule-week-label">
+    <div class="week-text" id="weekLabel">第 1 周</div>
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)">上一周</button>
+      <button onclick="goToCurrentWeek()">本周</button>
+      <button onclick="changeWeek(1)">下一周</button>
+      <button class="ocr-btn" onclick="openOcrImport()">
+        <span class="icon">📷</span>从截图导入
+      </button>
+    </div>
+  </div>
+  <div class="schedule-wrapper">
+    <div class="schedule-grid" id="scheduleGrid"></div>
+  </div>
+  <div style="margin-top:14px;text-align:center;font-size:13px;color:var(--text-secondary);padding:12px;">
+    点击空白格子添加课程 · 点击课程块编辑或删除
+  </div>
+</div>
+
+<!-- ========== 提醒事项 ========== -->
+<div class="view" id="view-reminders">
+  <div class="reminder-filters" id="reminderFilters">
+    <div class="filter-chip active" data-filter="all" onclick="filterReminders('all')">全部</div>
+    <div class="filter-chip" data-filter="pending" onclick="filterReminders('pending')">待办</div>
+    <div class="filter-chip" data-filter="done" onclick="filterReminders('done')">已完成</div>
+    <div class="filter-chip" data-filter="exam" onclick="filterReminders('exam')">考试</div>
+    <div class="filter-chip" data-filter="homework" onclick="filterReminders('homework')">作业</div>
+    <div class="filter-chip" data-filter="activity" onclick="filterReminders('activity')">活动</div>
+    <div class="filter-chip" data-filter="personal" onclick="filterReminders('personal')">个人</div>
+  </div>
+  <div id="reminderList"></div>
+</div>
+
+<!-- ========== 设置 ========== -->
+<div class="view" id="view-settings">
+  <div class="settings-group">
+    <div class="sg-label">学期设置</div>
+    <div class="settings-section">
+      <h3>基本信息</h3>
+      <input class="settings-input" id="semesterName" placeholder="学期名称（如 2026春季）">
+      <input class="settings-input" id="semesterStart" type="date" placeholder="学期开始日期">
+      <div style="display:flex;gap:10px;">
+        <input class="settings-input" id="totalWeeks" type="number" placeholder="总周数" style="flex:1" min="1" max="30">
+      </div>
+      <button class="btn-primary" onclick="saveSemesterSettings()">保存学期设置</button>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="sg-label">数据管理</div>
+    <div class="settings-item">
+      <span class="si-label">导出数据备份</span>
+      <button class="btn-export" onclick="exportData()">导出 JSON</button>
+    </div>
+    <div class="settings-item">
+      <span class="si-label">导入数据恢复</span>
+      <button class="btn-import" onclick="document.getElementById('importFile').click()">选择文件</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+    <div class="settings-item">
+      <span class="si-label" style="color:var(--accent)">清空所有数据</span>
+      <button class="btn-danger" onclick="confirmClearAll()">清空</button>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="sg-label">关于</div>
+    <div class="settings-section">
+      <h3>课表提醒助手 v1.0</h3>
+      <div class="about-text">
+        <strong>功能：</strong>课表管理、提醒事项、今日概览<br>
+        <strong>数据：</strong>所有数据保存在浏览器本地，不上传服务器<br>
+        <strong>使用：</strong>双击 HTML 文件即可打开，无需安装<br>
+        <strong>提示：</strong>清除浏览器数据会导致内容丢失，请定期导出备份<br><br>
+        用心做好每一次提醒 📅
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 浮动添加按钮 ========== -->
+<button class="fab" id="fab" onclick="onFabClick()">+</button>
+
+<!-- ========== 底部 Tab 栏 ========== -->
+<div class="tab-bar">
+  <div class="tab-item active" data-view="today" onclick="switchView('today')">
+    <div class="tab-icon">🏠</div>
+    <div class="tab-label">今日</div>
+  </div>
+  <div class="tab-item" data-view="schedule" onclick="switchView('schedule')">
+    <div class="tab-icon">📅</div>
+    <div class="tab-label">课表</div>
+  </div>
+  <div class="tab-item" data-view="reminders" onclick="switchView('reminders')">
+    <div class="tab-icon">📌</div>
+    <div class="tab-label">提醒</div>
+  </div>
+  <div class="tab-item" data-view="settings" onclick="switchView('settings')">
+    <div class="tab-icon">⚙️</div>
+    <div class="tab-label">设置</div>
+  </div>
+</div>
+
+<!-- ========== 课程模态框 ========== -->
+<div class="modal-overlay" id="modalCourse">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modalCourseTitle">添加课程</h2>
+      <button class="modal-close" onclick="closeModal('modalCourse')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">截图识别（可选）</label>
+      <div class="paste-zone" id="coursePasteZone" tabindex="0">
+        <div class="pz-icon">📋</div>
+        <div class="pz-text">粘贴课程截图，自动识别填写</div>
+        <div class="pz-hint">Ctrl+V 粘贴 · 或点击此处选择图片</div>
+      </div>
+      <input type="file" id="courseImageInput" accept="image/*" style="display:none" onchange="handleCourseImageFile(event)">
+    </div>
+    <div class="form-group">
+      <label class="form-label">课程名称</label>
+      <input class="form-input" id="courseName" placeholder="如：高等数学">
+    </div>
+    <div class="form-group">
+      <label class="form-label">上课地点</label>
+      <input class="form-input" id="courseLocation" placeholder="如：教学楼A301">
+    </div>
+    <div class="form-group">
+      <label class="form-label">任课教师</label>
+      <input class="form-input" id="courseTeacher" placeholder="如：张老师（选填）">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">星期</label>
+        <select class="form-select" id="courseDay">
+          <option value="1">周一</option>
+          <option value="2">周二</option>
+          <option value="3">周三</option>
+          <option value="4">周四</option>
+          <option value="5">周五</option>
+          <option value="6">周六</option>
+          <option value="7">周日</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">开始节次</label>
+        <select class="form-select" id="courseStartSlot"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">结束节次</label>
+        <select class="form-select" id="courseEndSlot"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">上课周次</label>
+      <div class="form-row" style="align-items:center;gap:8px;flex-wrap:wrap;">
+        <select class="form-select" id="courseWeekType" style="width:auto;flex:0 0 auto;" onchange="onWeekTypeChange()">
+          <option value="all">全部周次</option>
+          <option value="range">指定范围</option>
+          <option value="odd">单周</option>
+          <option value="even">双周</option>
+          <option value="custom">自定义</option>
+        </select>
+        <input class="form-input" id="courseWeekRange" placeholder="如 1-16" style="flex:1;min-width:80px;display:none;">
+      </div>
+      <div id="courseWeekChips" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">颜色标记</label>
+      <div class="color-picker" id="colorPicker"></div>
+    </div>
+    <input type="hidden" id="courseEditId">
+    <input type="hidden" id="courseWeeks" value="">
+    <button class="btn-primary" onclick="saveCourse()">保存课程</button>
+    <button class="btn-danger-text" id="deleteCourseBtn" style="display:none" onclick="deleteCourse()">删除此课程</button>
+  </div>
+</div>
+
+<!-- ========== 提醒模态框 ========== -->
+<div class="modal-overlay" id="modalReminder">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modalReminderTitle">添加提醒</h2>
+      <button class="modal-close" onclick="closeModal('modalReminder')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">标题</label>
+      <input class="form-input" id="reminderTitle" placeholder="如：交数学作业">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">日期</label>
+        <input class="form-input" id="reminderDate" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">时间</label>
+        <input class="form-input" id="reminderTime" type="time">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">分类</label>
+      <div class="tag-picker" id="tagPicker">
+        <div class="tag-option" data-tag="exam" onclick="selectTag(this)">考试</div>
+        <div class="tag-option" data-tag="homework" onclick="selectTag(this)">作业</div>
+        <div class="tag-option" data-tag="activity" onclick="selectTag(this)">活动</div>
+        <div class="tag-option" data-tag="personal" onclick="selectTag(this)">个人</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">备注（选填）</label>
+      <textarea class="form-textarea" id="reminderNote" placeholder="补充说明..."></textarea>
+    </div>
+    <input type="hidden" id="reminderEditId">
+    <button class="btn-primary" onclick="saveReminder()">保存提醒</button>
+    <button class="btn-danger-text" id="deleteReminderBtn" style="display:none" onclick="deleteReminder()">删除此提醒</button>
+  </div>
+</div>
+
+<!-- ========== 清空确认模态框 ========== -->
+<div class="modal-overlay" id="modalConfirm">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>确认清空</h2>
+      <button class="modal-close" onclick="closeModal('modalConfirm')">×</button>
+    </div>
+    <p style="font-size:15px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6;">
+      即将清空所有课程和提醒数据，此操作不可撤销。建议先导出备份。<br><br>
+      确认要继续吗？
+    </p>
+    <button class="btn-primary" style="background:var(--accent)" onclick="clearAllData()">确认清空</button>
+    <button class="btn-danger-text" onclick="closeModal('modalConfirm')">取消</button>
+  </div>
+</div>
+
+<!-- ========== OCR 截图导入模态框 ========== -->
+<div class="modal-overlay" id="modalOcr">
+  <div class="modal-content" style="max-width:560px;">
+    <div class="modal-header">
+      <h2>📷 从截图导入课表</h2>
+      <button class="modal-close" onclick="closeModal('modalOcr')">×</button>
+    </div>
+    <div id="ocrStep1">
+      <div class="ocr-upload-area" onclick="document.getElementById('ocrFileInput').click()">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">点击或拖拽上传课表截图</div>
+        <div class="upload-hint">支持 JPG / PNG 格式 · 支持网格课表和列表课表两种格式</div>
+      </div>
+      <input type="file" id="ocrFileInput" accept="image/*" style="display:none" onchange="handleOcrImage(event)">
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;padding:0 4px;">
+        <strong>使用说明：</strong><br>
+        1. 上传课表截图，程序将自动识别课程所在位置（星期、节次）<br>
+        2. 识别结果中课程内容需手动填写，可逐条编辑<br>
+        3. 确认位置无误后一键导入，后续点击课表中的课程可单独识别填写<br>
+        4. 需要联网加载识别引擎，首次使用稍慢
+      </div>
+    </div>
+    <div id="ocrStep2" style="display:none;">
+      <img class="ocr-preview-img" id="ocrPreviewImg" alt="课表截图">
+      <div class="ocr-loading" id="ocrLoading">
+        <div class="spinner"></div>
+        <div class="text" id="ocrLoadingText">正在加载识别引擎...</div>
+        <div class="ocr-progress"><div class="ocr-progress-bar" id="ocrProgressBar" style="width:0%"></div></div>
+      </div>
+      <div id="ocrResultsArea" style="display:none;">
+        <div class="ocr-summary" id="ocrSummary"></div>
+        <div class="ocr-results" id="ocrResults"></div>
+        <span class="ocr-toggle-raw" onclick="toggleRawText()">查看原始识别文本</span>
+        <div class="ocr-raw-text" id="ocrRawText"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;" id="ocrActions" style="display:none;">
+        <button class="btn-primary" style="flex:1;" onclick="confirmOcrImport()">确认导入</button>
+        <button class="btn-primary" style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);" onclick="resetOcrDialog()">重新上传</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Toast ========== -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========== 数据模型 & 存储 ========== */
+const STORAGE_KEY = 'scheduleReminderApp';
+const TOTAL_SLOTS = 11; // 每天最多11节课（无第12节）
+const TIME_SLOTS = [
+  { start: '08:00', end: '08:45' },
+  { start: '08:50', end: '09:35' },
+  { start: '10:00', end: '10:45' },
+  { start: '10:50', end: '11:35' },
+  { start: '13:30', end: '14:15' },
+  { start: '14:20', end: '15:05' },
+  { start: '15:30', end: '16:15' },
+  { start: '16:20', end: '17:05' },
+  { start: '18:30', end: '19:15' },
+  { start: '19:20', end: '20:05' },
+  { start: '20:10', end: '20:55' },
+];
+const DAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const WEEKDAY_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+// 课程颜色改为马卡龙淡色系（背景色，文字用深色）
+const COURSE_COLORS = ['#B8DCF5', '#C3E6B7', '#F8CDBE', '#FAE3A8', '#D9CBEA', '#BFE5E0', '#F5CFE4', '#F9D8B8'];
+// 每种背景色对应的文字深色
+const COURSE_TEXT_COLORS = ['#1D5C8F', '#2E6B2E', '#A34A2E', '#8A6D1A', '#5C4485', '#1F6B63', '#94456B', '#96591B'];
+
+// 根据课程颜色索引获取对应文字深色
+function getCourseTextColor(course) {
+  var color = course && course.color ? course.color : COURSE_COLORS[0];
+  for (var i = 0; i < COURSE_COLORS.length; i++) {
+    if (COURSE_COLORS[i] === color) return COURSE_TEXT_COLORS[i];
+  }
+  return '#333';
+}
+const TAG_NAMES = { exam: '考试', homework: '作业', activity: '活动', personal: '个人' };
+
+let appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16 } };
+let currentView = 'today';
+let currentWeekOffset = 0;
+let selectedColor = COURSE_COLORS[0];
+let selectedTag = 'homework';
+let selectedWeeks = []; // 选中的上课周次（空数组=全部周次）
+let reminderFilter = 'all';
+
+/* ========== 工具函数 ========== */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      appData = {
+        courses: parsed.courses || [],
+        reminders: parsed.reminders || [],
+        settings: parsed.settings || { semesterName: '', semesterStart: '', totalWeeks: 16 }
+      };
+    }
+  } catch(e) { console.warn('数据加载失败', e); }
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+  } catch(e) { showToast('保存失败：存储空间不足'); }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function formatDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function getTodayDayOfWeek() {
+  return new Date().getDay() === 0 ? 7 : new Date().getDay(); // 1-7, Monday=1
+}
+
+function getCurrentWeek() {
+  if (!appData.settings.semesterStart) return 1;
+  const start = new Date(appData.settings.semesterStart);
+  const now = new Date();
+  const diffDays = Math.floor((now - start) / (1000*60*60*24));
+  const week = Math.floor(diffDays / 7) + 1;
+  if (week < 1) return 1;
+  if (week > appData.settings.totalWeeks) return appData.settings.totalWeeks;
+  return week;
+}
+
+function getTimeStr(slot) {
+  return TIME_SLOTS[slot] ? TIME_SLOTS[slot].start : '';
+}
+
+/* ========== 视图切换 ========== */
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  if (view === 'today') renderToday();
+  if (view === 'schedule') renderSchedule();
+  if (view === 'reminders') renderReminders();
+  if (view === 'settings') renderSettings();
+}
+
+/* ========== 今日概览 ========== */
+function renderToday() {
+  const now = new Date();
+  const today = getTodayDayOfWeek();
+  const month = now.getMonth() + 1, date = now.getDate();
+  const weekday = WEEKDAY_NAMES[now.getDay()];
+
+  document.getElementById('navDate').textContent = `${month}月${date}日 ${weekday}`;
+  document.getElementById('heroDate').textContent = `${now.getFullYear()}年${month}月${date}日`;
+  document.getElementById('heroWeekday').textContent = weekday;
+
+  const week = getCurrentWeek();
+  document.getElementById('heroWeek').textContent = appData.settings.semesterName
+    ? `${appData.settings.semesterName} · 第${week}周`
+    : `第${week}周`;
+
+  // 今日课程
+  var currentWeek = getCurrentWeek();
+  const todayCourses = appData.courses
+    .filter(c => {
+      if (c.day !== today) return false;
+      if (c.weeks && c.weeks.length > 0) return c.weeks.indexOf(currentWeek) >= 0;
+      return true;
+    })
+    .sort((a, b) => a.startSlot - b.startSlot);
+
+  renderTodayCourses(todayCourses, now);
+  renderNextClass(todayCourses, now);
+
+  // 今日提醒
+  const todayStr = formatDate(now);
+  const todayReminders = appData.reminders
+    .filter(r => r.date === todayStr)
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  renderTodayReminders(todayReminders);
+}
+
+function renderTodayCourses(courses, now) {
+  const container = document.getElementById('todayCourseList');
+  const countEl = document.getElementById('todayCourseCount');
+  countEl.textContent = courses.length ? `共 ${courses.length} 节` : '';
+
+  if (!courses.length) {
+    container.innerHTML = '<div class="empty-state"><div class="emoji">🎉</div><div class="text">今天没有课，享受自由时光吧！</div></div>';
+    return;
+  }
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  container.innerHTML = courses.map(c => {
+    const slot = TIME_SLOTS[c.startSlot - 1];
+    const endSlot = TIME_SLOTS[c.endSlot - 1];
+    if (!slot || !endSlot) return '';
+    const startMin = parseInt(slot.start.split(':')[0]) * 60 + parseInt(slot.start.split(':')[1]);
+    const endMin = parseInt(endSlot.end.split(':')[0]) * 60 + parseInt(endSlot.end.split(':')[1]);
+    let status = '', badge = '';
+    if (nowMinutes < startMin) {
+      status = 'upcoming'; badge = '即将';
+    } else if (nowMinutes >= startMin && nowMinutes <= endMin) {
+      status = 'ongoing'; badge = '进行中';
+    } else {
+      status = 'done'; badge = '已结束';
+    }
+    return `
+      <div class="course-item-today" onclick="editCourse('${c.id}')">
+        <div class="time-col">
+          <div class="start">${slot.start}</div>
+          <div class="end">${endSlot.end}</div>
+        </div>
+        <div class="color-bar" style="background:${getCourseTextColor(c)}"></div>
+        <div class="info-col">
+          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="meta">
+            ${c.location ? `<span>📍 ${escapeHtml(c.location)}</span>` : ''}
+            ${c.teacher ? `<span>👤 ${escapeHtml(c.teacher)}</span>` : ''}
+            <span>第${c.startSlot}-${c.endSlot}节</span>
+            ${c.weeks && c.weeks.length ? `<span>📅 第${weeksToText(c.weeks, appData.settings.totalWeeks || 16)}周</span>` : ''}
+          </div>
+        </div>
+        <div class="status-badge ${status}">${badge}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderNextClass(courses, now) {
+  const heroNext = document.getElementById('heroNext');
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const upcoming = courses.find(c => {
+    const slot = TIME_SLOTS[c.startSlot - 1];
+    if (!slot) return false;
+    const startMin = parseInt(slot.start.split(':')[0]) * 60 + parseInt(slot.start.split(':')[1]);
+    return startMin > nowMinutes;
+  });
+
+  if (upcoming) {
+    const slot = TIME_SLOTS[upcoming.startSlot - 1];
+    const startMin = parseInt(slot.start.split(':')[0]) * 60 + parseInt(slot.start.split(':')[1]);
+    const diff = startMin - nowMinutes;
+    const hours = Math.floor(diff / 60), mins = diff % 60;
+    const cd = hours > 0 ? `${hours}小时${mins}分` : `${mins}分钟`;
+    heroNext.innerHTML = `<span>⏰ 下节课：${escapeHtml(upcoming.name)}</span><span class="countdown">${cd}</span>`;
+  } else {
+    const ongoing = courses.find(c => {
+      const slot = TIME_SLOTS[c.startSlot - 1];
+      const endSlot = TIME_SLOTS[c.endSlot - 1];
+      if (!slot || !endSlot) return false;
+      const startMin = parseInt(slot.start.split(':')[0]) * 60 + parseInt(slot.start.split(':')[1]);
+      const endMin = parseInt(endSlot.end.split(':')[0]) * 60 + parseInt(endSlot.end.split(':')[1]);
+      return nowMinutes >= startMin && nowMinutes <= endMin;
+    });
+    if (ongoing) {
+      heroNext.innerHTML = `<span>📖 正在上：${escapeHtml(ongoing.name)}</span><span class="countdown">进行中</span>`;
+    } else {
+      heroNext.innerHTML = `<span class="no-class">今日课程已全部结束 🎉</span>`;
+    }
+  }
+}
+
+function renderTodayReminders(reminders) {
+  const container = document.getElementById('todayReminderList');
+  const countEl = document.getElementById('todayReminderCount');
+  const pending = reminders.filter(r => !r.done).length;
+  countEl.textContent = reminders.length ? `${pending} 项待办 / ${reminders.length} 项` : '';
+
+  if (!reminders.length) {
+    container.innerHTML = '<div class="empty-state"><div class="emoji">✨</div><div class="text">今天没有待办事项</div></div>';
+    return;
+  }
+
+  container.innerHTML = reminders.map(r => `
+    <div class="reminder-item-today">
+      <div class="check ${r.done ? 'done' : ''}" onclick="event.stopPropagation();toggleReminderDone('${r.id}')">${r.done ? '✓' : ''}</div>
+      <div class="ri-content" onclick="editReminder('${r.id}')">
+        <div class="ri-title ${r.done ? 'done' : ''}">${escapeHtml(r.title)}</div>
+        <div class="ri-meta">
+          ${r.time ? `⏰ ${r.time}` : ''}
+          <span class="ri-tag tag-${r.category}">${TAG_NAMES[r.category] || r.category}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ========== 课表管理 ========== */
+function renderSchedule() {
+  const week = getCurrentWeek() + currentWeekOffset;
+  document.getElementById('weekLabel').textContent = `第 ${week} 周`;
+
+  const today = getTodayDayOfWeek();
+  const grid = document.getElementById('scheduleGrid');
+
+  // 用显式 grid 定位，避免跨行课程导致自动流错位
+  // 行：第1行=表头，第2-13行=节次1-12
+  // 列：第1列=节次号，第2-8列=周一到周日
+  let html = '';
+
+  // 表头行（grid-row:1）
+  html += `<div class="sg-header" style="background:var(--bg);grid-column:1;grid-row:1;"></div>`;
+  for (let d = 1; d <= 7; d++) {
+    const isToday = (currentWeekOffset === 0 && d === today);
+    html += `<div class="sg-header ${isToday ? 'today' : ''}" style="grid-column:${d+1};grid-row:1;"><div class="day-name">${DAY_NAMES[d]}</div></div>`;
+  }
+
+  // 计算休息行位置后的行号映射
+  // 节次1-4为上午，节次5-8为下午，节次9-12为晚上
+  // 第4节后插入午休行，第8节后插入晚休行
+  // grid行号：节次s → s+1；午休在节次4后 = 行6；晚休在节次8后 = 行11
+  var breakAfterSlot = { 4: '午 休', 8: '晚 休'};
+
+  // 课程格子（节次1-11）
+  var currentWeek = getCurrentWeek() + currentWeekOffset;
+  var gridRow = 1; // 当前grid行号（从1开始，表头占第1行）
+  for (let s = 1; s <= TOTAL_SLOTS; s++) {
+    gridRow++;
+    // 节次号 + 时间
+    const slotTime = TIME_SLOTS[s - 1];
+    html += `<div class="sg-slot-num" style="grid-column:1;grid-row:${gridRow};">
+      <div class="slot-n">${s}</div>
+      <div class="slot-t">${slotTime.start}</div>
+      <div class="slot-t">${slotTime.end}</div>
+    </div>`;
+    for (let d = 1; d <= 7; d++) {
+      const course = appData.courses.find(c => {
+        if (c.day !== d || c.startSlot > s || c.endSlot < s) return false;
+        // 周次过滤：如果课程有 weeks 数组，检查当前周是否在其中
+        if (c.weeks && c.weeks.length > 0) {
+          return c.weeks.indexOf(currentWeek) >= 0;
+        }
+        return true; // 没有 weeks 字段 = 全部周次都有
+      });
+      if (course && course.startSlot === s) {
+        // 跨节课程：计算实际 grid 行（包含休息行的偏移）
+        const rowStart = gridRow;
+        // 计算结束行：从当前节次到结束节次，累加中间的休息行
+        var rowEnd = rowStart + (course.endSlot - course.startSlot);
+        for (var bs in breakAfterSlot) {
+          var bsNum = parseInt(bs);
+          if (bsNum >= course.startSlot && bsNum < course.endSlot) rowEnd++;
+        }
+        rowEnd++; // grid行号是开区间结尾
+        // 生成课程方块文字
+        var colorIdx = 0;
+        for (var ci = 0; ci < COURSE_COLORS.length; ci++) {
+          if (COURSE_COLORS[ci] === (course.color || COURSE_COLORS[0])) { colorIdx = ci; break; }
+        }
+        var bgColor = course.color || COURSE_COLORS[0];
+        var textColor = COURSE_TEXT_COLORS[colorIdx] || '#333';
+        var cName = escapeHtml(course.name || '待填写');
+        var cLoc = course.location ? `<div class="sg-c-loc">${escapeHtml(course.location)}</div>` : '';
+        var cTeacher = course.teacher ? `<div class="sg-c-teacher">${escapeHtml(course.teacher)}</div>` : '';
+        // 单节课时显示紧凑一点
+        if (course.endSlot === course.startSlot) {
+          cTeacher = '';
+        }
+        html += `<div class="sg-cell has-course" style="grid-column:${d+1};grid-row:${rowStart}/${rowEnd};" data-day="${d}" data-slot="${course.startSlot}">
+          <div class="sg-course" style="background:${bgColor};color:${textColor}" data-cid="${course.id}">
+            <div class="sg-handle-top"></div>
+            <div class="sg-c-name">${cName}</div>
+            ${cLoc}
+            ${cTeacher}
+            <div class="sg-handle-bottom"></div>
+          </div>
+        </div>`;
+      } else if (course && course.startSlot < s) {
+        // 被跨行课程覆盖的格子，不渲染
+      } else {
+        html += `<div class="sg-cell" style="grid-column:${d+1};grid-row:${gridRow};" data-day="${d}" data-slot="${s}"></div>`;
+      }
+    }
+    // 节次结束后插入休息行
+    if (breakAfterSlot[s]) {
+      gridRow++;
+      html += `<div class="sg-break" style="grid-row:${gridRow};">~ ${breakAfterSlot[s]} ~</div>`;
+    }
+  }
+
+  grid.innerHTML = html;
+  bindScheduleInteractions();
+}
+
+function changeWeek(delta) {
+  const week = getCurrentWeek() + currentWeekOffset + delta;
+  if (week < 1) { showToast('已经是第1周了'); return; }
+  if (week > appData.settings.totalWeeks) { showToast('已超过最后一周'); return; }
+  currentWeekOffset += delta;
+  renderSchedule();
+}
+
+function goToCurrentWeek() {
+  currentWeekOffset = 0;
+  renderSchedule();
+}
+
+/* ========== 课程 CRUD ========== */
+function openAddCourse(day, slot) {
+  document.getElementById('modalCourseTitle').textContent = '添加课程';
+  document.getElementById('courseName').value = '';
+  document.getElementById('courseLocation').value = '';
+  document.getElementById('courseTeacher').value = '';
+  document.getElementById('courseDay').value = day || 1;
+  document.getElementById('courseStartSlot').value = slot || 1;
+  document.getElementById('courseEndSlot').value = slot || 1;
+  document.getElementById('courseEditId').value = '';
+  document.getElementById('deleteCourseBtn').style.display = 'none';
+  selectedColor = COURSE_COLORS[0];
+  selectedWeeks = [];
+  renderColorPicker();
+  setWeekTypeUI('all');
+  openModal('modalCourse');
+}
+
+function editCourse(id) {
+  const c = appData.courses.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('modalCourseTitle').textContent = '编辑课程';
+  document.getElementById('courseName').value = c.name || '';
+  document.getElementById('courseLocation').value = c.location || '';
+  document.getElementById('courseTeacher').value = c.teacher || '';
+  document.getElementById('courseDay').value = c.day;
+  document.getElementById('courseStartSlot').value = c.startSlot;
+  document.getElementById('courseEndSlot').value = c.endSlot;
+  document.getElementById('courseEditId').value = id;
+  document.getElementById('deleteCourseBtn').style.display = 'block';
+  selectedColor = c.color || COURSE_COLORS[0];
+  selectedWeeks = (c.weeks && c.weeks.length) ? c.weeks.slice() : [];
+  renderColorPicker();
+  if (selectedWeeks.length === 0) {
+    setWeekTypeUI('all');
+  } else {
+    setWeekTypeUI('custom', selectedWeeks);
+  }
+  openModal('modalCourse');
+}
+
+function renderColorPicker() {
+  const picker = document.getElementById('colorPicker');
+  picker.innerHTML = COURSE_COLORS.map(c =>
+    `<div class="color-dot ${c === selectedColor ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${c}')"></div>`
+  ).join('');
+}
+
+function selectColor(c) {
+  selectedColor = c;
+  renderColorPicker();
+}
+
+/* ========== 上课周次选择 ========== */
+function onWeekTypeChange() {
+  var type = document.getElementById('courseWeekType').value;
+  setWeekTypeUI(type);
+}
+
+function setWeekTypeUI(type, presetWeeks) {
+  var rangeInput = document.getElementById('courseWeekRange');
+  var chipsDiv = document.getElementById('courseWeekChips');
+  rangeInput.style.display = 'none';
+  chipsDiv.style.display = 'none';
+  chipsDiv.innerHTML = '';
+
+  var totalWeeks = appData.settings.totalWeeks || 16;
+
+  if (type === 'all') {
+    selectedWeeks = [];
+  } else if (type === 'range') {
+    rangeInput.style.display = 'block';
+    rangeInput.placeholder = '如 1-' + totalWeeks;
+    if (presetWeeks && presetWeeks.length) {
+      // 尝试生成范围文本
+      rangeInput.value = weeksToText(presetWeeks, totalWeeks);
+      selectedWeeks = presetWeeks.slice();
+    } else {
+      rangeInput.value = '1-' + totalWeeks;
+      selectedWeeks = generateWeeksFromRange('1-' + totalWeeks, totalWeeks);
+    }
+  } else if (type === 'odd') {
+    selectedWeeks = [];
+    for (var i = 1; i <= totalWeeks; i += 2) selectedWeeks.push(i);
+  } else if (type === 'even') {
+    selectedWeeks = [];
+    for (var i = 2; i <= totalWeeks; i += 2) selectedWeeks.push(i);
+  } else if (type === 'custom') {
+    chipsDiv.style.display = 'flex';
+    var html = '';
+    for (var w = 1; w <= totalWeeks; w++) {
+      var active = presetWeeks ? presetWeeks.indexOf(w) >= 0 : false;
+      html += '<div class="week-chip' + (active ? ' active' : '') + '" data-week="' + w + '" onclick="toggleWeekChip(' + w + ', this)">' + w + '</div>';
+    }
+    chipsDiv.innerHTML = html;
+    if (presetWeeks) {
+      selectedWeeks = presetWeeks.slice();
+    } else {
+      selectedWeeks = [];
+    }
+  }
+}
+
+function toggleWeekChip(week, el) {
+  var idx = selectedWeeks.indexOf(week);
+  if (idx >= 0) {
+    selectedWeeks.splice(idx, 1);
+    el.classList.remove('active');
+  } else {
+    selectedWeeks.push(week);
+    selectedWeeks.sort(function(a, b) { return a - b; });
+    el.classList.add('active');
+  }
+}
+
+// 从范围文本生成周次数组
+function generateWeeksFromRange(text, totalWeeks) {
+  var weeks = [];
+  // 支持 "1-16" 或 "1,3,5" 或 "1-8,11-16"
+  var parts = text.split(',');
+  for (var pi = 0; pi < parts.length; pi++) {
+    var part = parts[pi].trim();
+    var rangeMatch = part.match(/(\d+)\s*[-~～到至]\s*(\d+)/);
+    if (rangeMatch) {
+      var start = parseInt(rangeMatch[1]);
+      var end = parseInt(rangeMatch[2]);
+      for (var w = start; w <= end; w++) {
+        if (w >= 1 && w <= totalWeeks) weeks.push(w);
+      }
+    } else {
+      var n = parseInt(part);
+      if (n >= 1 && n <= totalWeeks) weeks.push(n);
+    }
+  }
+  return weeks;
+}
+
+// 周次数组转文本
+function weeksToText(weeks, totalWeeks) {
+  if (!weeks || !weeks.length) return '1-' + totalWeeks;
+  weeks.sort(function(a, b) { return a - b; });
+  // 全部连续 → 简化为范围
+  var allWeeks = [];
+  for (var i = 1; i <= totalWeeks; i++) allWeeks.push(i);
+  if (JSON.stringify(weeks) === JSON.stringify(allWeeks)) return '1-' + totalWeeks;
+  // 检测是否全是单/双周
+  var allOdd = weeks.every(function(w) { return w % 2 === 1; });
+  var allEven = weeks.every(function(w) { return w % 2 === 0; });
+  // 检测连续范围
+  var ranges = [];
+  var start = weeks[0], end = weeks[0];
+  for (var i = 1; i < weeks.length; i++) {
+    if (weeks[i] === end + 1) {
+      end = weeks[i];
+    } else {
+      ranges.push(start === end ? '' + start : start + '-' + end);
+      start = weeks[i];
+      end = weeks[i];
+    }
+  }
+  ranges.push(start === end ? '' + start : start + '-' + end);
+  return ranges.join(',');
+}
+
+// 获取最终周次（供 saveCourse 使用）
+function getCourseWeeks() {
+  var type = document.getElementById('courseWeekType').value;
+  if (type === 'all') {
+    return [];
+  } else if (type === 'range') {
+    var text = document.getElementById('courseWeekRange').value.trim();
+    if (!text) return [];
+    return generateWeeksFromRange(text, appData.settings.totalWeeks || 16);
+  } else {
+    return selectedWeeks.slice();
+  }
+}
+
+// 设置周次UI（供 OCR 识别后自动调用）
+function setWeeksFromOcr(weekArray) {
+  if (!weekArray || !weekArray.length) {
+    setWeekTypeUI('all');
+    return;
+  }
+  selectedWeeks = weekArray.slice();
+  setWeekTypeUI('custom', weekArray);
+}
+
+function saveCourse() {
+  const name = document.getElementById('courseName').value.trim();
+  if (!name) { showToast('请输入课程名称'); return; }
+  const startSlot = parseInt(document.getElementById('courseStartSlot').value);
+  const endSlot = parseInt(document.getElementById('courseEndSlot').value);
+  if (endSlot < startSlot) { showToast('结束节次不能早于开始节次'); return; }
+
+  // 获取周次
+  var weeks = getCourseWeeks();
+
+  const course = {
+    id: document.getElementById('courseEditId').value || uid(),
+    name: name,
+    location: document.getElementById('courseLocation').value.trim(),
+    teacher: document.getElementById('courseTeacher').value.trim(),
+    day: parseInt(document.getElementById('courseDay').value),
+    startSlot: startSlot,
+    endSlot: endSlot,
+    weeks: weeks,
+    color: selectedColor
+  };
+
+  const editId = document.getElementById('courseEditId').value;
+  if (editId) {
+    const idx = appData.courses.findIndex(c => c.id === editId);
+    if (idx >= 0) appData.courses[idx] = course;
+  } else {
+    appData.courses.push(course);
+  }
+
+  saveData();
+  closeModal('modalCourse');
+  showToast(editId ? '课程已更新' : '课程已添加');
+  if (currentView === 'schedule') renderSchedule();
+  if (currentView === 'today') renderToday();
+}
+
+function deleteCourse() {
+  const id = document.getElementById('courseEditId').value;
+  if (!id) return;
+  appData.courses = appData.courses.filter(c => c.id !== id);
+  saveData();
+  closeModal('modalCourse');
+  showToast('课程已删除');
+  if (currentView === 'schedule') renderSchedule();
+  if (currentView === 'today') renderToday();
+}
+
+/* ========== 提醒 CRUD ========== */
+function openAddReminder() {
+  document.getElementById('modalReminderTitle').textContent = '添加提醒';
+  document.getElementById('reminderTitle').value = '';
+  document.getElementById('reminderDate').value = formatDate(new Date());
+  document.getElementById('reminderTime').value = '';
+  document.getElementById('reminderNote').value = '';
+  document.getElementById('reminderEditId').value = '';
+  document.getElementById('deleteReminderBtn').style.display = 'none';
+  selectedTag = 'homework';
+  document.querySelectorAll('.tag-option').forEach(t => t.classList.toggle('selected', t.dataset.tag === 'homework'));
+  openModal('modalReminder');
+}
+
+function editReminder(id) {
+  const r = appData.reminders.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('modalReminderTitle').textContent = '编辑提醒';
+  document.getElementById('reminderTitle').value = r.title || '';
+  document.getElementById('reminderDate').value = r.date || '';
+  document.getElementById('reminderTime').value = r.time || '';
+  document.getElementById('reminderNote').value = r.note || '';
+  document.getElementById('reminderEditId').value = id;
+  document.getElementById('deleteReminderBtn').style.display = 'block';
+  selectedTag = r.category || 'homework';
+  document.querySelectorAll('.tag-option').forEach(t => t.classList.toggle('selected', t.dataset.tag === selectedTag));
+  openModal('modalReminder');
+}
+
+function selectTag(el) {
+  selectedTag = el.dataset.tag;
+  document.querySelectorAll('.tag-option').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function saveReminder() {
+  const title = document.getElementById('reminderTitle').value.trim();
+  if (!title) { showToast('请输入提醒标题'); return; }
+  const date = document.getElementById('reminderDate').value;
+  if (!date) { showToast('请选择日期'); return; }
+
+  const reminder = {
+    id: document.getElementById('reminderEditId').value || uid(),
+    title: title,
+    date: date,
+    time: document.getElementById('reminderTime').value,
+    category: selectedTag,
+    note: document.getElementById('reminderNote').value.trim(),
+    done: false
+  };
+
+  const editId = document.getElementById('reminderEditId').value;
+  if (editId) {
+    const idx = appData.reminders.findIndex(r => r.id === editId);
+    if (idx >= 0) {
+      reminder.done = appData.reminders[idx].done; // 保留完成状态
+      appData.reminders[idx] = reminder;
+    }
+  } else {
+    appData.reminders.push(reminder);
+  }
+
+  saveData();
+  closeModal('modalReminder');
+  showToast(editId ? '提醒已更新' : '提醒已添加');
+  if (currentView === 'reminders') renderReminders();
+  if (currentView === 'today') renderToday();
+}
+
+function deleteReminder() {
+  const id = document.getElementById('reminderEditId').value;
+  if (!id) return;
+  appData.reminders = appData.reminders.filter(r => r.id !== id);
+  saveData();
+  closeModal('modalReminder');
+  showToast('提醒已删除');
+  if (currentView === 'reminders') renderReminders();
+  if (currentView === 'today') renderToday();
+}
+
+function toggleReminderDone(id) {
+  const r = appData.reminders.find(x => x.id === id);
+  if (!r) return;
+  r.done = !r.done;
+  saveData();
+  if (currentView === 'reminders') renderReminders();
+  if (currentView === 'today') renderToday();
+}
+
+/* ========== 提醒列表渲染 ========== */
+function filterReminders(filter) {
+  reminderFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
+  renderReminders();
+}
+
+function renderReminders() {
+  const container = document.getElementById('reminderList');
+  let list = [...appData.reminders];
+
+  // 过滤
+  if (reminderFilter === 'pending') list = list.filter(r => !r.done);
+  else if (reminderFilter === 'done') list = list.filter(r => r.done);
+  else if (reminderFilter !== 'all') list = list.filter(r => r.category === reminderFilter);
+
+  // 排序：未完成在前，按日期升序
+  list.sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''));
+  });
+
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-state"><div class="emoji">📝</div><div class="text">暂无提醒事项<br>点击右下角 + 添加</div></div>';
+    return;
+  }
+
+  const todayStr = formatDate(new Date());
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = formatDate(tomorrow);
+
+  container.innerHTML = list.map(r => {
+    let dateLabel = r.date;
+    if (r.date === todayStr) dateLabel = '今天';
+    else if (r.date === tomorrowStr) dateLabel = '明天';
+    else {
+      const d = new Date(r.date);
+      dateLabel = `${d.getMonth()+1}月${d.getDate()}日`;
+    }
+    const isUrgent = !r.done && r.date < todayStr;
+    return `
+      <div class="reminder-item ${isUrgent ? 'urgent' : ''}">
+        <div class="check ${r.done ? 'done' : ''}" onclick="toggleReminderDone('${r.id}')">${r.done ? '✓' : ''}</div>
+        <div class="ri-body">
+          <div class="ri-top">
+            <div class="ri-title ${r.done ? 'done' : ''}">${escapeHtml(r.title)}</div>
+            <div class="ri-actions">
+              <button onclick="editReminder('${r.id}')">✏️</button>
+            </div>
+          </div>
+          <div class="ri-bottom">
+            <span class="ri-date">📅 ${dateLabel}${r.time ? ' ⏰ ' + r.time : ''}</span>
+            <span class="ri-tag tag-${r.category}">${TAG_NAMES[r.category] || r.category}</span>
+          </div>
+          ${r.note ? `<div class="ri-note">${escapeHtml(r.note)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ========== 设置 ========== */
+function renderSettings() {
+  document.getElementById('semesterName').value = appData.settings.semesterName || '';
+  document.getElementById('semesterStart').value = appData.settings.semesterStart || '';
+  document.getElementById('totalWeeks').value = appData.settings.totalWeeks || 16;
+}
+
+function saveSemesterSettings() {
+  appData.settings.semesterName = document.getElementById('semesterName').value.trim();
+  appData.settings.semesterStart = document.getElementById('semesterStart').value;
+  appData.settings.totalWeeks = parseInt(document.getElementById('totalWeeks').value) || 16;
+  saveData();
+  showToast('学期设置已保存');
+  if (currentView === 'today') renderToday();
+}
+
+function exportData() {
+  const dataStr = JSON.stringify(appData, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `课表提醒备份_${formatDate(new Date())}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('数据已导出');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.courses) appData.courses = data.courses;
+      if (data.reminders) appData.reminders = data.reminders;
+      if (data.settings) appData.settings = data.settings;
+      saveData();
+      showToast('数据导入成功');
+      if (currentView === 'today') renderToday();
+      if (currentView === 'schedule') renderSchedule();
+      if (currentView === 'reminders') renderReminders();
+      if (currentView === 'settings') renderSettings();
+    } catch(err) {
+      showToast('导入失败：文件格式错误');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function confirmClearAll() {
+  openModal('modalConfirm');
+}
+
+function clearAllData() {
+  appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16 } };
+  saveData();
+  closeModal('modalConfirm');
+  showToast('所有数据已清空');
+  renderSettings();
+}
+
+/* ========== FAB ========== */
+function onFabClick() {
+  if (currentView === 'schedule') {
+    openAddCourse(getTodayDayOfWeek(), 1);
+  } else if (currentView === 'reminders') {
+    openAddReminder();
+  } else if (currentView === 'today') {
+    openAddReminder();
+  } else {
+    switchView('reminders');
+    openAddReminder();
+  }
+}
+
+/* ========== 模态框控制 ========== */
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// 点击遮罩关闭
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+});
+
+/* ========== HTML 转义 ========== */
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ========== OCR 截图导入功能 ========== */
+let ocrCourses = []; // OCR 识别出的课程列表
+let tesseractLoaded = false;
+
+// 打开 OCR 导入弹窗
+function openOcrImport() {
+  resetOcrDialog();
+  openModal('modalOcr');
+}
+
+// 重置 OCR 弹窗
+function resetOcrDialog() {
+  document.getElementById('ocrStep1').style.display = 'block';
+  document.getElementById('ocrStep2').style.display = 'none';
+  document.getElementById('ocrFileInput').value = '';
+  ocrCourses = [];
+}
+
+// 处理上传的图片
+function handleOcrImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('请上传图片文件'); return; }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('ocrPreviewImg').src = e.target.result;
+    document.getElementById('ocrStep1').style.display = 'none';
+    document.getElementById('ocrStep2').style.display = 'block';
+    document.getElementById('ocrLoading').style.display = 'block';
+    document.getElementById('ocrResultsArea').style.display = 'none';
+    document.getElementById('ocrActions').style.display = 'none';
+    runOcr(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+// 运行 OCR 识别（增强版：多策略 + 多遍重试）
+async function runOcr(imageDataUrl) {
+  const loadingText = document.getElementById('ocrLoadingText');
+  const progressBar = document.getElementById('ocrProgressBar');
+
+  try {
+    // 动态加载 Tesseract.js
+    if (typeof Tesseract === 'undefined') {
+      loadingText.textContent = '正在加载识别引擎（首次稍慢）...';
+      progressBar.style.width = '5%';
+      await loadTesseractScript();
+    }
+
+    // 第一步：高级图片预处理（超分辨率放大 + Otsu 二值化 + 降噪 + 锐化）
+    loadingText.textContent = '正在增强图片清晰度（超分辨率 + 二值化）...';
+    progressBar.style.width = '12%';
+    const processedImage = await preprocessImage(imageDataUrl);
+
+    // 第二步：使用 Worker API 以获得更精细的参数控制
+    loadingText.textContent = '正在初始化识别引擎...';
+    progressBar.style.width = '22%';
+
+    // PSM 11 = SPARSE_TEXT，适合网格课表中分散排列的文字
+    const PSM_SPARSE = (Tesseract.PSM && Tesseract.PSM.SPARSE_TEXT) || 11;
+    // PSM 6 = SINGLE_BLOCK，适合密集排列的文字块
+    const PSM_BLOCK = (Tesseract.PSM && Tesseract.PSM.SINGLE_BLOCK) || 6;
+
+    const worker = await Tesseract.createWorker('chi_sim', 1, {
+      logger: function(m) {
+        if (m.status === 'recognizing text') {
+          progressBar.style.width = (25 + m.progress * 55) + '%';
+          loadingText.textContent = '正在识别文字（第 1 遍）... ' + Math.round(m.progress * 100) + '%';
+        }
+      }
+    });
+
+    await worker.setParameters({
+      tessedit_pageseg_mode: PSM_SPARSE,
+      preserve_interword_spaces: '1',
+    });
+
+    // 第三步：第 1 遍识别（SPARSE_TEXT 模式）
+    loadingText.textContent = '正在识别图片内容（第 1 遍：稀疏文本模式）...';
+    progressBar.style.width = '25%';
+    const { data: data1 } = await worker.recognize(processedImage);
+
+    let finalData = data1;
+
+    // 第四步：如果第 1 遍结果太少，用 SINGLE_BLOCK 模式重试
+    const wordCount1 = (data1.words || []).filter(w => w.text && w.text.trim()).length;
+    if (wordCount1 < 8) {
+      loadingText.textContent = '正在优化识别（第 2 遍：整块文本模式）...';
+      progressBar.style.width = '82%';
+
+      await worker.setParameters({
+        tessedit_pageseg_mode: PSM_BLOCK,
+        preserve_interword_spaces: '1',
+      });
+
+      const { data: data2 } = await worker.recognize(processedImage);
+      const wordCount2 = (data2.words || []).filter(w => w.text && w.text.trim()).length;
+
+      if (wordCount2 > wordCount1) {
+        finalData = data2;
+      }
+    }
+
+    await worker.terminate();
+
+    progressBar.style.width = '92%';
+    loadingText.textContent = '正在解析课程信息...';
+
+    // 第五步：OCR 文本后处理（清理噪声字符）
+    const cleanedText = postProcessOcrText(finalData.text);
+    document.getElementById('ocrRawText').textContent = cleanedText;
+
+    // 第六步：只识别课程位置（星期+节次），不解析课程内容
+    // 用户后续通过单课截图识别填写具体内容
+    ocrCourses = parseScheduleSpatialPositions(finalData, cleanedText);
+    if (ocrCourses.length === 0) {
+      ocrCourses = parseScheduleText(cleanedText);
+    }
+
+    progressBar.style.width = '100%';
+
+    // 显示识别结果
+    setTimeout(() => {
+      document.getElementById('ocrLoading').style.display = 'none';
+      document.getElementById('ocrResultsArea').style.display = 'block';
+      document.getElementById('ocrActions').style.display = 'flex';
+      renderOcrResults();
+    }, 300);
+
+  } catch(err) {
+    console.error('OCR 识别失败:', err);
+    loadingText.textContent = '识别失败：' + (err.message || '未知错误');
+    progressBar.style.width = '0%';
+    setTimeout(() => {
+      document.getElementById('ocrLoading').style.display = 'none';
+      document.getElementById('ocrResultsArea').style.display = 'block';
+      document.getElementById('ocrActions').style.display = 'flex';
+      document.getElementById('ocrSummary').innerHTML = '<div style="color:var(--accent);font-size:14px;">⚠️ 识别失败，请尝试重新上传或手动添加课程</div>';
+      document.getElementById('ocrResults').innerHTML = '';
+    }, 1000);
+  }
+}
+
+// 动态加载 Tesseract.js
+function loadTesseractScript() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    script.onload = () => {
+      tesseractLoaded = true;
+      resolve();
+    };
+    script.onerror = () => reject(new Error('识别引擎加载失败，请检查网络连接'));
+    document.head.appendChild(script);
+  });
+}
+
+// ========== 高级图片预处理（超分辨率 + Otsu 二值化 + 降噪 + 锐化） ==========
+
+function preprocessImage(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = function() {
+      try {
+        let w = img.width, h = img.height;
+        const maxDim = 2500;
+
+        // 第一步：超分辨率放大（小图放大 2-3 倍，给 OCR 更多像素信息）
+        let scale = 1;
+        const maxSide = Math.max(w, h);
+        if (maxSide < 800) {
+          scale = 3; // 极小图放大 3 倍
+        } else if (maxSide < 1500) {
+          scale = 2; // 中等图放大 2 倍
+        }
+        if (maxSide * scale > maxDim) {
+          scale = Math.floor(maxDim / maxSide);
+          if (scale < 1) scale = 1;
+        }
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+
+        const canvas = document.createElement('canvas');
+        const ctx2d = canvas.getContext('2d');
+        canvas.width = w;
+        canvas.height = h;
+
+        // 使用高质量图像平滑（双三次插值效果）
+        ctx2d.imageSmoothingEnabled = true;
+        ctx2d.imageSmoothingQuality = 'high';
+        ctx2d.drawImage(img, 0, 0, w, h);
+
+        const imageData = ctx2d.getImageData(0, 0, w, h);
+        const data = imageData.data;
+
+        // 第二步：灰度化（标准亮度转换）
+        const grayArr = new Uint8Array(w * h);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+          const gray = Math.round(data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
+          grayArr[j] = gray;
+          data[i] = data[i+1] = data[i+2] = gray;
+        }
+
+        // 第三步：锐化文字边缘（Unsharp Mask，在灰度图上操作）
+        sharpenText(imageData, w, h);
+
+        // 重新计算灰度值（锐化后值已变化）
+        for (let j = 0; j < grayArr.length; j++) {
+          grayArr[j] = data[j * 4];
+        }
+
+        // 第四步：Otsu 自适应二值化（自动计算最优阈值，分离文字与背景）
+        const threshold = otsuThreshold(grayArr);
+        for (let i = 0; i < data.length; i += 4) {
+          const val = data[i] < threshold ? 0 : 255;
+          data[i] = data[i+1] = data[i+2] = val;
+        }
+
+        // 第五步：去除孤立噪点（4 邻域检测，消除二值化后的椒盐噪声）
+        removeNoisePixels(imageData, w, h);
+
+        ctx2d.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch(e) {
+        console.warn('图片预处理失败，使用原图', e);
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// Otsu 自适应阈值算法：自动计算最优二值化阈值
+function otsuThreshold(grayArr) {
+  const histogram = new Array(256).fill(0);
+  for (let i = 0; i < grayArr.length; i++) {
+    histogram[grayArr[i]]++;
+  }
+  const total = grayArr.length;
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * histogram[i];
+
+  let sumB = 0, wB = 0, maxVar = -1, threshold = 128;
+  for (let i = 0; i < 256; i++) {
+    wB += histogram[i];
+    if (wB === 0) continue;
+    const wF = total - wB;
+    if (wF === 0) break;
+    sumB += i * histogram[i];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const betweenVar = wB * wF * (mB - mF) * (mB - mF);
+    if (betweenVar > maxVar) {
+      maxVar = betweenVar;
+      threshold = i;
+    }
+  }
+  return threshold;
+}
+
+// 去除孤立噪点：4 邻域检测，消除孤立的黑白像素
+function removeNoisePixels(imageData, w, h) {
+  const data = imageData.data;
+  const binary = new Uint8Array(w * h);
+  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+    binary[j] = data[i] < 128 ? 0 : 1; // 0=黑(文字), 1=白(背景)
+  }
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = y * w + x;
+      if (binary[idx] === 0) {
+        // 孤立黑点（4 邻域全白）→ 去除
+        if (binary[idx-1] === 1 && binary[idx+1] === 1 && binary[idx-w] === 1 && binary[idx+w] === 1) {
+          const di = idx * 4;
+          data[di] = data[di+1] = data[di+2] = 255;
+        }
+      } else {
+        // 孤立白点（4 邻域全黑）→ 填充
+        if (binary[idx-1] === 0 && binary[idx+1] === 0 && binary[idx-w] === 0 && binary[idx+w] === 0) {
+          const di = idx * 4;
+          data[di] = data[di+1] = data[di+2] = 0;
+        }
+      }
+    }
+  }
+}
+
+// 锐化文字边缘（Unsharp Mask：原图 - 模糊图 = 高频，叠加回原图）
+function sharpenText(imageData, w, h) {
+  // 提取灰度通道到 1D 数组
+  const src = new Uint8Array(w * h);
+  for (let i = 0, j = 0; i < imageData.data.length; i += 4, j++) {
+    src[j] = imageData.data[i];
+  }
+  const amount = 1.5; // 锐化强度
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = y * w + x;
+      const center = src[idx];
+      const up = src[idx - w];
+      const down = src[idx + w];
+      const left = src[idx - 1];
+      const right = src[idx + 1];
+      // 5 点平均 = 简单模糊
+      const blurred = (up + down + left + right + center) / 5;
+      // Unsharp Mask = 原图 + 强度 * (原图 - 模糊图)
+      const sharpened = Math.max(0, Math.min(255, Math.round(center + amount * (center - blurred))));
+      const di = idx * 4;
+      imageData.data[di] = imageData.data[di+1] = imageData.data[di+2] = sharpened;
+    }
+  }
+}
+
+// OCR 文本后处理：清理常见识别噪声
+function postProcessOcrText(text) {
+  if (!text) return '';
+  let lines = text.split('\n');
+  lines = lines.map(line => {
+    line = line.trim();
+    // 去除行首的噪声字符（竖线、波浪号、破折号等 OCR 常见误识）
+    line = line.replace(/^[|~—_=#·•・]+/g, '');
+    // 合并多个连续空格为单个
+    line = line.replace(/ {2,}/g, ' ');
+    // 去除中文字符之间的多余空格（OCR 常在中文间插入空格）
+    line = line.replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, function(m, p1, p2) { return p1 + p2; });
+    // 去除中文与数字之间的多余空格
+    line = line.replace(/([\u4e00-\u9fa5])\s+(\d)/g, '$1$2');
+    line = line.replace(/(\d)\s+([\u4e00-\u9fa5])/g, '$1$2');
+    return line;
+  });
+  // 过滤空行
+  lines = lines.filter(line => line.length > 0);
+  return lines.join('\n');
+}
+
+// 解析 OCR 文本，提取课程信息
+function parseScheduleText(text) {
+  if (!text || !text.trim()) return [];
+
+  // 清理文本
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1);
+  const allText = lines.join('\n');
+
+  // 尝试两种解析策略
+  let courses = parseListFormat(lines, allText);
+  if (courses.length === 0) {
+    courses = parseGridFormat(lines, allText);
+  }
+
+  // 为每个课程分配颜色和ID
+  courses.forEach((c, i) => {
+    c.id = uid();
+    c.color = COURSE_COLORS[i % COURSE_COLORS.length];
+    c._incomplete = !c.name || !c.day || !c.startSlot || !c.endSlot;
+  });
+
+  return courses;
+}
+
+// 解析列表格式课表（有明确字段标签的格式）
+function parseListFormat(lines, allText) {
+  const courses = [];
+
+  // 尝试将多行合并为逻辑块（每个课程一个块）
+  // 列表格式通常每门课程占多行，以课程名或编号开头
+  let blocks = [];
+  let currentBlock = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // 检测新课程开始的标志
+    const isNewCourse = /课程名[称]?[:：]/.test(line) ||
+                        /^[A-Z]{2,4}\d{2,}/.test(line) || // 课程编号
+                        (/星期[一二三四五六日天]/.test(line) && currentBlock.length > 0 && /课程名[称]?[:：]/.test(currentBlock[currentBlock.length-1]));
+
+    if (isNewCourse && currentBlock.length > 0) {
+      blocks.push(currentBlock);
+      currentBlock = [];
+    }
+    currentBlock.push(line);
+  }
+  if (currentBlock.length > 0) blocks.push(currentBlock);
+
+  // 如果只找到一个块或块太少，可能不是列表格式
+  if (blocks.length < 2) return [];
+
+  for (const block of blocks) {
+    const blockText = block.join('\n');
+    const course = {};
+
+    // 提取课程名称
+    const nameMatch = blockText.match(/课程名[称]?[:：]\s*(.+)/);
+    if (nameMatch) {
+      course.name = nameMatch[1].trim().split(/\s+/)[0];
+    }
+
+    // 提取任课教师
+    const teacherMatch = blockText.match(/(?:任课教师|教师)[:：]\s*([\u4e00-\u9fa5]{2,4})/);
+    if (teacherMatch) course.teacher = teacherMatch[1];
+
+    // 提取上课时间
+    const timeMatch = blockText.match(/(?:上课时间|时间)[:：]\s*(.+)/);
+    if (timeMatch) {
+      const timeInfo = parseTimeInfo(timeMatch[1]);
+      if (timeInfo.day) course.day = timeInfo.day;
+      if (timeInfo.startSlot) course.startSlot = timeInfo.startSlot;
+      if (timeInfo.endSlot) course.endSlot = timeInfo.endSlot;
+    }
+
+    // 如果没有通过字段标签提取到时间，尝试从整块文本中提取
+    if (!course.day) {
+      const timeInfo = parseTimeInfo(blockText);
+      if (timeInfo.day) course.day = timeInfo.day;
+      if (timeInfo.startSlot) course.startSlot = timeInfo.startSlot;
+      if (timeInfo.endSlot) course.endSlot = timeInfo.endSlot;
+    }
+
+    // 提取上课地点
+    const locMatch = blockText.match(/(?:上课地点|地点)[:：]\s*(.+)/);
+    if (locMatch) {
+      course.location = locMatch[1].trim().split(/\s+/)[0];
+    }
+
+    // 只有提取到了课程名或时间信息才认为是一个有效课程
+    if (course.name || (course.day && course.startSlot)) {
+      courses.push(course);
+    }
+  }
+
+  return courses;
+}
+
+// 解析网格格式课表（无明确标签，文字按位置排列）
+function parseGridFormat(lines, allText) {
+  const courses = [];
+
+  // 网格格式中，通常每行包含：课程名 + 地点 + 教师 + 时间信息
+  // 或按天分列排列
+
+  // 策略：逐行扫描，提取每行中的课程信息
+  const dayMap = {
+    '周一': 1, '周一': 1, '星期一': 1, 'MON': 1, 'Mon': 1,
+    '周二': 2, '星期二': 2, 'TUE': 2, 'Tue': 2,
+    '周三': 3, '星期三': 3, 'WED': 3, 'Wed': 3,
+    '周四': 4, '星期四': 4, 'THU': 4, 'Thu': 4,
+    '周五': 5, '星期五': 5, 'FRI': 5, 'Fri': 5,
+    '周六': 6, '星期六': 6, 'SAT': 6, 'Sat': 6,
+    '周日': 7, '星期日': 7, '星期天': 7, 'SUN': 7, 'Sun': 7,
+  };
+
+  // 尝试按行解析：每行可能包含一个课程的多条信息
+  // 或多行组合成一个课程
+  let currentCourse = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const timeInfo = parseTimeInfo(line);
+
+    // 如果当前行包含时间信息
+    if (timeInfo.day && timeInfo.startSlot) {
+      // 如果已有未完成的课程，先保存
+      if (currentCourse && (currentCourse.name || currentCourse.day)) {
+        courses.push(currentCourse);
+      }
+
+      currentCourse = {
+        day: timeInfo.day,
+        startSlot: timeInfo.startSlot,
+        endSlot: timeInfo.endSlot || timeInfo.startSlot,
+      };
+
+      // 尝试从当前行提取课程名（时间信息前后的中文文字）
+      const lineWithoutTime = line.replace(/星期[一二三四五六日天]/g, '')
+        .replace(/周[一二三四五六日天]/g, '')
+        .replace(/第\d+[,\-~—至到]\d+节/g, '')
+        .replace(/第\d+节/g, '')
+        .replace(/\d+[-~—至到]\d+节/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (lineWithoutTime.length > 0 && lineWithoutTime.length < 30) {
+        currentCourse.name = lineWithoutTime;
+      }
+    } else if (currentCourse) {
+      // 当前行是当前课程的补充信息
+
+      // 尝试提取地点（常见模式：北+数字、南+数字、教+数字、线上等）
+      if (!currentCourse.location) {
+        const locMatch = line.match(/([南北]\d{2,4}|[东南西北]楼?\d+|教\d+|教学楼[A-Z]?\d+|线上[课堂]*)/);
+        if (locMatch) {
+          currentCourse.location = locMatch[1];
+        }
+      }
+
+      // 尝试提取课程名（如果是纯中文且长度合理）
+      if (!currentCourse.name) {
+        const nameCandidate = line.replace(/[\d\s\-:：.,，。()（）]/g, '').trim();
+        if (nameCandidate.length >= 2 && nameCandidate.length <= 20 && /^[\u4e00-\u9fa5]/.test(nameCandidate)) {
+          // 排除明显的非课程名文本
+          if (!/^(周|星期|第|节|上课|地点|教师|任课)/.test(nameCandidate)) {
+            currentCourse.name = nameCandidate;
+          }
+        }
+      }
+
+      // 尝试提取教师名
+      if (!currentCourse.teacher) {
+        const teacherMatch = line.match(/(?:教师|任课教师)[:：]?\s*([\u4e00-\u9fa5]{2,4})/);
+        if (teacherMatch) {
+          currentCourse.teacher = teacherMatch[1];
+        }
+      }
+    }
+  }
+
+  // 保存最后一个课程
+  if (currentCourse && (currentCourse.name || currentCourse.day)) {
+    courses.push(currentCourse);
+  }
+
+  // 去重：合并相同课程名 + 相同时间的条目
+  const seen = new Set();
+  return courses.filter(c => {
+    const key = (c.name || '') + '_' + (c.day || '') + '_' + (c.startSlot || '');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// 从文本中解析时间信息
+function parseTimeInfo(text) {
+  const info = {};
+
+  // 解析星期
+  const dayPatterns = [
+    { regex: /星期([一二三四五六日天])/, map: { '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '日':7, '天':7 } },
+    { regex: /周([一二三四五六日天])/, map: { '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '日':7, '天':7 } },
+  ];
+
+  for (const dp of dayPatterns) {
+    const match = text.match(dp.regex);
+    if (match) {
+      info.day = dp.map[match[1]];
+      break;
+    }
+  }
+
+  // 解析节次
+  // 模式1: 第X-X节 或 第X至X节
+  const slotMatch1 = text.match(/第(\d+)\s*[,\-~—至到]\s*(\d+)\s*节/);
+  if (slotMatch1) {
+    info.startSlot = parseInt(slotMatch1[1]);
+    info.endSlot = parseInt(slotMatch1[2]);
+  }
+
+  // 模式2: 第X节
+  if (!info.startSlot) {
+    const slotMatch2 = text.match(/第(\d+)\s*节/);
+    if (slotMatch2) {
+      info.startSlot = parseInt(slotMatch2[1]);
+      info.endSlot = parseInt(slotMatch2[1]);
+    }
+  }
+
+  // 模式3: X-X节
+  if (!info.startSlot) {
+    const slotMatch3 = text.match(/(\d+)\s*[,\-~—至到]\s*(\d+)\s*节/);
+    if (slotMatch3) {
+      info.startSlot = parseInt(slotMatch3[1]);
+      info.endSlot = parseInt(slotMatch3[2]);
+    }
+  }
+
+  // 模式4: X节
+  if (!info.startSlot) {
+    const slotMatch4 = text.match(/(\d+)\s*节/);
+    if (slotMatch4) {
+      info.startSlot = parseInt(slotMatch4[1]);
+      info.endSlot = parseInt(slotMatch4[1]);
+    }
+  }
+
+  return info;
+}
+
+/* ========== 空间位置解析引擎（网格课表专用） ========== */
+
+// 主函数：利用 OCR 返回的文字坐标重建网格结构
+function parseScheduleSpatial(data, rawText) {
+  // 获取所有文字块（words），每个带 bbox 坐标
+  const words = (data.words || []).filter(w => w.text && w.text.trim());
+  if (words.length < 8) return [];
+
+  // 计算图片文字区域范围
+  const allY0 = words.map(w => w.bbox.y0);
+  const allY1 = words.map(w => w.bbox.y1);
+  const allX0 = words.map(w => w.bbox.x0);
+  const allX1 = words.map(w => w.bbox.x1);
+  const minY = Math.min.apply(null, allY0);
+  const maxY = Math.max.apply(null, allY1);
+  const minX = Math.min.apply(null, allX0);
+  const maxX = Math.max.apply(null, allX1);
+  const height = maxY - minY;
+  const width = maxX - minX;
+  if (height < 100 || width < 100) return [];
+
+  // 第一步：在图片顶部 15% 区域找星期表头
+  var headerBottom = minY + height * 0.15;
+  var dayHeaders = findDayHeaders(words, headerBottom);
+  if (dayHeaders.length < 2) return []; // 找不到足够的列标头，不是网格格式
+
+  dayHeaders.sort(function(a, b) { return a.xCenter - b.xCenter; });
+
+  // 第二步：根据表头位置定义列边界
+  var colBounds = [];
+  for (var i = 0; i < dayHeaders.length; i++) {
+    var xLeft = i === 0 ? minX - 20 : (dayHeaders[i].x0 + dayHeaders[i - 1].x1) / 2;
+    var xRight = i === dayHeaders.length - 1 ? maxX + 20 : (dayHeaders[i].x1 + dayHeaders[i + 1].x0) / 2;
+    colBounds.push({ day: dayHeaders[i].day, x0: xLeft, x1: xRight });
+  }
+
+  // 第三步：在最左侧 12% 区域找节次数字，定义行边界
+  var leftColRight = minX + width * 0.12;
+  var rowBounds = findRowBoundaries(words, leftColRight, headerBottom, maxY);
+
+  // 计算行高（用于后续聚类的间隔阈值）
+  var rowHeight;
+  if (rowBounds.length >= 2) {
+    rowHeight = (rowBounds[rowBounds.length - 1].yCenter - rowBounds[0].yCenter) / (rowBounds.length - 1);
+  } else {
+    rowHeight = (maxY - headerBottom) / TOTAL_SLOTS;
+  }
+  // 降低聚类阈值：从 rowHeight*0.35 降到 rowHeight*0.2，更敏感地检测同一格子内的多个课程方块
+  var gapThreshold = Math.max(rowHeight * 0.2, height * 0.015);
+
+  // 第四步：过滤掉表头行和左侧节次列的文字
+  var cellWords = words.filter(function(w) {
+    var cy = (w.bbox.y0 + w.bbox.y1) / 2;
+    var cx = (w.bbox.x0 + w.bbox.x1) / 2;
+    if (cy < headerBottom) return false; // 排除表头
+    if (rowBounds.length > 0 && cx < leftColRight) return false; // 排除左侧列
+    // 排除悬浮提示框中常见的干扰文字
+    if (/排课信息|悬浮|提示/.test(w.text)) return false;
+    return true;
+  });
+
+  // 第五步：将文字块分配到各列（星期）
+  var colWords = {};
+  for (var ci = 0; ci < colBounds.length; ci++) {
+    colWords[colBounds[ci].day] = [];
+  }
+  for (var wi = 0; wi < cellWords.length; wi++) {
+    var w = cellWords[wi];
+    var wcx = (w.bbox.x0 + w.bbox.x1) / 2;
+    for (var cj = 0; cj < colBounds.length; cj++) {
+      if (wcx >= colBounds[cj].x0 && wcx <= colBounds[cj].x1) {
+        colWords[colBounds[cj].day].push(w);
+        break;
+      }
+    }
+  }
+
+  // 第六步：每列内按 y 坐标聚类，每个聚类 = 一个课程单元格
+  var courses = [];
+  for (var ck = 0; ck < colBounds.length; ck++) {
+    var day = colBounds[ck].day;
+    var dWords = colWords[day];
+    if (!dWords || dWords.length === 0) continue;
+
+    // 按 y 排序
+    dWords.sort(function(a, b) { return a.bbox.y0 - b.bbox.y0; });
+
+    // 聚类
+    var clusters = clusterWordsByY(dWords, gapThreshold);
+
+    for (var cli = 0; cli < clusters.length; cli++) {
+      var cluster = clusters[cli];
+      if (cluster.length === 0) continue;
+
+      var clY0 = Math.min.apply(null, cluster.map(function(c) { return c.bbox.y0; }));
+      var clY1 = Math.max.apply(null, cluster.map(function(c) { return c.bbox.y1; }));
+
+      // 确定节次范围：使用重叠行检测（而非仅用中心y）
+      // 一个课程方块即使只占了格子的一部分，仍代表该节次有课
+      var startSlot = null, endSlot = null;
+      if (rowBounds.length > 0) {
+        for (var ri = 0; ri < rowBounds.length; ri++) {
+          // 检测课程方块的 y 范围是否与该行的 y 范围有重叠
+          if (clY1 > rowBounds[ri].y0 && clY0 < rowBounds[ri].y1) {
+            if (startSlot === null) startSlot = rowBounds[ri].slot;
+            endSlot = rowBounds[ri].slot;
+          }
+        }
+      }
+      if (!startSlot) {
+        // 没有行边界，根据相对 y 位置估算
+        var clYCenter = (clY0 + clY1) / 2;
+        var tableTop = rowBounds.length > 0 ? rowBounds[0].y0 : headerBottom;
+        var tableBottom = rowBounds.length > 0 ? rowBounds[rowBounds.length - 1].y1 : maxY;
+        var relY = (clYCenter - tableTop) / (tableBottom - tableTop);
+        startSlot = Math.max(1, Math.min(TOTAL_SLOTS, Math.ceil(relY * TOTAL_SLOTS)));
+        if (clY1 - clY0 > rowHeight * 0.8 && rowHeight > 0) {
+          var endRelY = (clY1 - tableTop) / (tableBottom - tableTop);
+          endSlot = Math.max(startSlot, Math.min(TOTAL_SLOTS, Math.ceil(endRelY * TOTAL_SLOTS)));
+        } else {
+          endSlot = startSlot;
+        }
+      }
+
+      // 检测同一格子内是否有多个课程方块，自动拆分
+      var cellCourses = splitMultiCourseCluster(cluster, day, startSlot, endSlot);
+      for (var ci2 = 0; ci2 < cellCourses.length; ci2++) {
+        if (cellCourses[ci2] && (cellCourses[ci2].name || cellCourses[ci2].day)) {
+          courses.push(cellCourses[ci2]);
+        }
+      }
+    }
+  }
+
+  // 去重：相同课程名+相同时间+相同地点视为重复
+  var seen = {};
+  var unique = courses.filter(function(c) {
+    var key = (c.name || '') + '_' + (c.day || '') + '_' + (c.startSlot || '') + '_' + (c.location || '');
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+
+  // 分配 ID、颜色、完整性标记
+  unique.forEach(function(c, i) {
+    if (!c.id) c.id = uid();
+    if (!c.color) c.color = COURSE_COLORS[i % COURSE_COLORS.length];
+    c._incomplete = !c.name || !c.day || !c.startSlot || !c.endSlot;
+  });
+
+  return unique;
+}
+
+// 只识别课程位置（星期+节次），不解析课程内容
+// 复用空间解析的网格检测逻辑，但每个聚类只保留 day/startSlot/endSlot
+function parseScheduleSpatialPositions(data, rawText) {
+  const words = (data.words || []).filter(w => w.text && w.text.trim());
+  if (words.length < 8) return [];
+
+  const allY0 = words.map(w => w.bbox.y0);
+  const allY1 = words.map(w => w.bbox.y1);
+  const allX0 = words.map(w => w.bbox.x0);
+  const allX1 = words.map(w => w.bbox.x1);
+  const minY = Math.min.apply(null, allY0);
+  const maxY = Math.max.apply(null, allY1);
+  const minX = Math.min.apply(null, allX0);
+  const maxX = Math.max.apply(null, allX1);
+  const height = maxY - minY;
+  const width = maxX - minX;
+  if (height < 100 || width < 100) return [];
+
+  // 找星期表头
+  var headerBottom = minY + height * 0.15;
+  var dayHeaders = findDayHeaders(words, headerBottom);
+  if (dayHeaders.length < 2) return [];
+
+  dayHeaders.sort(function(a, b) { return a.xCenter - b.xCenter; });
+
+  // 列边界
+  var colBounds = [];
+  for (var i = 0; i < dayHeaders.length; i++) {
+    var xLeft = i === 0 ? minX - 20 : (dayHeaders[i].x0 + dayHeaders[i - 1].x1) / 2;
+    var xRight = i === dayHeaders.length - 1 ? maxX + 20 : (dayHeaders[i].x1 + dayHeaders[i + 1].x0) / 2;
+    colBounds.push({ day: dayHeaders[i].day, x0: xLeft, x1: xRight });
+  }
+
+  // 行边界
+  var leftColRight = minX + width * 0.12;
+  var rowBounds = findRowBoundaries(words, leftColRight, headerBottom, maxY);
+
+  var rowHeight;
+  if (rowBounds.length >= 2) {
+    rowHeight = (rowBounds[rowBounds.length - 1].yCenter - rowBounds[0].yCenter) / (rowBounds.length - 1);
+  } else {
+    rowHeight = (maxY - headerBottom) / TOTAL_SLOTS;
+  }
+  var gapThreshold = Math.max(rowHeight * 0.2, height * 0.015);
+
+  // 过滤表头和左侧列
+  var cellWords = words.filter(function(w) {
+    var cy = (w.bbox.y0 + w.bbox.y1) / 2;
+    var cx = (w.bbox.x0 + w.bbox.x1) / 2;
+    if (cy < headerBottom) return false;
+    if (rowBounds.length > 0 && cx < leftColRight) return false;
+    if (/排课信息|悬浮|提示/.test(w.text)) return false;
+    return true;
+  });
+
+  // 分配到各列
+  var colWords = {};
+  for (var ci = 0; ci < colBounds.length; ci++) {
+    colWords[colBounds[ci].day] = [];
+  }
+  for (var wi = 0; wi < cellWords.length; wi++) {
+    var w = cellWords[wi];
+    var wcx = (w.bbox.x0 + w.bbox.x1) / 2;
+    for (var cj = 0; cj < colBounds.length; cj++) {
+      if (wcx >= colBounds[cj].x0 && wcx <= colBounds[cj].x1) {
+        colWords[colBounds[cj].day].push(w);
+        break;
+      }
+    }
+  }
+
+  // 每列聚类，只记录位置
+  var courses = [];
+  for (var ck = 0; ck < colBounds.length; ck++) {
+    var day = colBounds[ck].day;
+    var dWords = colWords[day];
+    if (!dWords || dWords.length === 0) continue;
+
+    dWords.sort(function(a, b) { return a.bbox.y0 - b.bbox.y0; });
+    var clusters = clusterWordsByY(dWords, gapThreshold);
+
+    for (var cli = 0; cli < clusters.length; cli++) {
+      var cluster = clusters[cli];
+      if (cluster.length === 0) continue;
+
+      var clY0 = Math.min.apply(null, cluster.map(function(c) { return c.bbox.y0; }));
+      var clY1 = Math.max.apply(null, cluster.map(function(c) { return c.bbox.y1; }));
+
+      var startSlot = null, endSlot = null;
+      if (rowBounds.length > 0) {
+        for (var ri = 0; ri < rowBounds.length; ri++) {
+          if (clY1 > rowBounds[ri].y0 && clY0 < rowBounds[ri].y1) {
+            if (startSlot === null) startSlot = rowBounds[ri].slot;
+            endSlot = rowBounds[ri].slot;
+          }
+        }
+      }
+      if (!startSlot) {
+        var clYCenter = (clY0 + clY1) / 2;
+        var tableTop = rowBounds.length > 0 ? rowBounds[0].y0 : headerBottom;
+        var tableBottom = rowBounds.length > 0 ? rowBounds[rowBounds.length - 1].y1 : maxY;
+        var relY = (clYCenter - tableTop) / (tableBottom - tableTop);
+        startSlot = Math.max(1, Math.min(TOTAL_SLOTS, Math.ceil(relY * TOTAL_SLOTS)));
+        if (clY1 - clY0 > rowHeight * 0.8 && rowHeight > 0) {
+          var endRelY = (clY1 - tableTop) / (tableBottom - tableTop);
+          endSlot = Math.max(startSlot, Math.min(TOTAL_SLOTS, Math.ceil(endRelY * TOTAL_SLOTS)));
+        } else {
+          endSlot = startSlot;
+        }
+      }
+
+      // 只记录位置，但尝试提取周次信息
+      var clusterText = cluster.map(function(c) { return c.text; }).join('');
+      var weeksArr = [];
+      var weekMatch = clusterText.match(/\[[\d,\-～~到至\s]+\]/);
+      if (weekMatch) {
+        weeksArr = generateWeeksFromRange(weekMatch[0].replace(/[\[\]]/g, ''), 16);
+      }
+      courses.push({
+        id: uid(),
+        day: day,
+        startSlot: startSlot,
+        endSlot: endSlot,
+        name: '',
+        location: '',
+        teacher: '',
+        weeks: weeksArr,
+        color: COURSE_COLORS[courses.length % COURSE_COLORS.length],
+        _incomplete: true
+      });
+    }
+  }
+
+  // 去重：相同星期+相同节次范围只保留一个
+  var seen = {};
+  var unique = courses.filter(function(c) {
+    var key = c.day + '_' + c.startSlot + '_' + c.endSlot;
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+
+  return unique;
+}
+function findDayHeaders(words, headerBottom) {
+  var headerWords = words.filter(function(w) {
+    return (w.bbox.y0 + w.bbox.y1) / 2 < headerBottom && w.text.trim();
+  });
+  if (headerWords.length < 3) return [];
+
+  // 按 x 再按 y 排序
+  headerWords.sort(function(a, b) { return a.bbox.x0 - b.bbox.x0 || a.bbox.y0 - b.bbox.y0; });
+
+  // 合并水平方向相邻的文字块（OCR 可能把"周一"拆成"周"和"一"）
+  var combined = [];
+  var cur = null;
+  for (var i = 0; i < headerWords.length; i++) {
+    var w = headerWords[i];
+    if (cur && (w.bbox.x0 - cur.x1) < 35 && Math.abs((w.bbox.y0 + w.bbox.y1) / 2 - (cur.y0 + cur.y1) / 2) < 15) {
+      cur.text += w.text;
+      cur.x1 = w.bbox.x1;
+      cur.y0 = Math.min(cur.y0, w.bbox.y0);
+      cur.y1 = Math.max(cur.y1, w.bbox.y1);
+    } else {
+      if (cur) combined.push(cur);
+      cur = { text: w.text, x0: w.bbox.x0, x1: w.bbox.x1, y0: w.bbox.y0, y1: w.bbox.y1 };
+    }
+  }
+  if (cur) combined.push(cur);
+
+  // 匹配星期模式
+  var dayMap = [
+    { match: /周[一1]/, day: 1 },
+    { match: /星期一/, day: 1 },
+    { match: /周[二2]/, day: 2 },
+    { match: /星期二/, day: 2 },
+    { match: /周[三3]/, day: 3 },
+    { match: /星期三/, day: 3 },
+    { match: /周[四4]/, day: 4 },
+    { match: /星期四/, day: 4 },
+    { match: /周[五5]/, day: 5 },
+    { match: /星期五/, day: 5 },
+    { match: /周[六6]/, day: 6 },
+    { match: /星期六/, day: 6 },
+    { match: /周[日曰天7]/, day: 7 },
+    { match: /星期[日天]/, day: 7 },
+  ];
+
+  var dayHeaders = [];
+  for (var ci = 0; ci < combined.length; ci++) {
+    var text = combined[ci].text.trim();
+    for (var di = 0; di < dayMap.length; di++) {
+      if (dayMap[di].match.test(text)) {
+        dayHeaders.push({
+          day: dayMap[di].day,
+          x0: combined[ci].x0,
+          x1: combined[ci].x1,
+          xCenter: (combined[ci].x0 + combined[ci].x1) / 2
+        });
+        break;
+      }
+    }
+  }
+
+  // 去重（同一天只保留一个）
+  var seenDays = {};
+  var unique = [];
+  dayHeaders.sort(function(a, b) { return a.xCenter - b.xCenter; });
+  for (var ui = 0; ui < dayHeaders.length; ui++) {
+    if (!seenDays[dayHeaders[ui].day]) {
+      seenDays[dayHeaders[ui].day] = true;
+      unique.push(dayHeaders[ui]);
+    }
+  }
+
+  return unique;
+}
+
+// 在最左侧列找节次数字，定义行边界
+function findRowBoundaries(words, leftColRight, headerBottom, maxY) {
+  var numWords = words.filter(function(w) {
+    var cx = (w.bbox.x0 + w.bbox.x1) / 2;
+    var cy = (w.bbox.y0 + w.bbox.y1) / 2;
+    return cx < leftColRight && cy > headerBottom && /^\d{1,2}$/.test(w.text.trim());
+  });
+  if (numWords.length < 3) return [];
+
+  numWords.sort(function(a, b) { return a.bbox.y0 - b.bbox.y0; });
+
+  var rowBounds = [];
+  for (var i = 0; i < numWords.length; i++) {
+    var w = numWords[i];
+    var slot = parseInt(w.text.trim());
+    if (slot < 1 || slot > TOTAL_SLOTS) continue;
+
+    var yCenter = (w.bbox.y0 + w.bbox.y1) / 2;
+    var y0, y1;
+    if (i === 0 && numWords.length > 1) {
+      var nextYc = (numWords[i + 1].bbox.y0 + numWords[i + 1].bbox.y1) / 2;
+      y0 = headerBottom;
+      y1 = (yCenter + nextYc) / 2;
+    } else if (i === numWords.length - 1) {
+      var prevYc = (numWords[i - 1].bbox.y0 + numWords[i - 1].bbox.y1) / 2;
+      y0 = (yCenter + prevYc) / 2;
+      y1 = maxY;
+    } else {
+      var prevYc2 = (numWords[i - 1].bbox.y0 + numWords[i - 1].bbox.y1) / 2;
+      var nextYc2 = (numWords[i + 1].bbox.y0 + numWords[i + 1].bbox.y1) / 2;
+      y0 = (yCenter + prevYc2) / 2;
+      y1 = (yCenter + nextYc2) / 2;
+    }
+    rowBounds.push({ slot: slot, y0: y0, y1: y1, yCenter: yCenter });
+  }
+
+  return rowBounds;
+}
+
+// 按y坐标聚类文字块（同一课程单元格内的文字）
+function clusterWordsByY(words, gapThreshold) {
+  if (words.length === 0) return [];
+  var clusters = [[words[0]]];
+  for (var i = 1; i < words.length; i++) {
+    var prevBottom = words[i - 1].bbox.y1;
+    var currTop = words[i].bbox.y0;
+    if (currTop - prevBottom > gapThreshold) {
+      clusters.push([words[i]]);
+    } else {
+      clusters[clusters.length - 1].push(words[i]);
+    }
+  }
+  return clusters;
+}
+
+// 解析单个课程方块的文本，按真实字段顺序提取
+// 顺序：老师名 → (工号) → 课程名（可能换行）→ (课程代码) → [周次] → 地点
+function parseCellText(rawText, day, startSlot, endSlot) {
+  var course = { day: day, startSlot: startSlot, endSlot: endSlot };
+
+  // 去除空格和换行
+  var text = rawText.replace(/\s+/g, '').trim();
+  if (!text || text.length < 2) return null;
+
+  // ---- 第1步：提取老师名+工号（最先出现）----
+  // 模式：张文彬(10083)，可能有多名老师：王新(13004)、查建峰(91137)、朱杰(11051)
+  var teacherRegex = /([\u4e00-\u9fa5]{2,4})\((\d{3,6})\)/g;
+  var teacherMatch;
+  var teachers = [];
+  while ((teacherMatch = teacherRegex.exec(text)) !== null) {
+    teachers.push(teacherMatch[1]);
+  }
+  if (teachers.length > 0) {
+    course.teacher = teachers.join('、');
+  }
+  // 移除所有老师名+工号（含分隔符）
+  text = text.replace(/[\u4e00-\u9fa5]{2,4}\(\d{3,6}\)[、,，]?/g, '');
+
+  // ---- 第2步：提取课程代码（字母+数字，可能在括号内也可能裸露）----
+  // 模式：(CMA111212) 或 CMA111212 或 (DPE1101B6)
+  var codeMatch = text.match(/\(?([A-Z]{2,5}\d{3,}[A-Z0-9]*)\)?/);
+  if (codeMatch) {
+    text = text.replace(codeMatch[0], '');
+  }
+
+  // ---- 第3步：提取周次范围（中括号内）----
+  // 模式：[1-16] 或 [1,3,5,7,9,11,13,15] 或 [9,16]
+  var weekMatch = text.match(/\[[\d,\-～~到至\s]+\]/);
+  if (weekMatch) {
+    var weekStr = weekMatch[0].replace(/[\[\]]/g, '');
+    course.weeks = generateWeeksFromRange(weekStr, 16);
+    text = text.replace(weekMatch[0], '');
+  }
+
+  // ---- 第4步：提取上课地点（最后出现）----
+  var locPatterns = [
+    /线上课堂/,
+    /线上[课]*/,
+    /物理馆[\d\-楼]*/,
+    /爱校路[\u4e00-\u9fa5\d（()）]+/,
+    /[一二三]教\d{2,4}/,
+    /教学楼[A-Z]?\d{2,4}/,
+    /[东南西北]\d{2,4}/,
+    /[东南西北]楼\d{0,4}/,
+    /[东南西北]号?[\u4e00-\u9fa5]*\d*/,
+  ];
+  for (var pi = 0; pi < locPatterns.length; pi++) {
+    var lm = text.match(locPatterns[pi]);
+    if (lm && lm[0] && lm[0].length >= 2) {
+      course.location = lm[0];
+      text = text.replace(locPatterns[pi], '');
+      break;
+    }
+  }
+
+  // ---- 第5步：清理残余噪声，剩余文字即为课程名称 ----
+  // 移除开头的独立数字、残余括号、分隔符
+  text = text.replace(/^\d+/, '');
+  text = text.replace(/^[、,，:：]+/, '');
+  text = text.replace(/\(\)/g, '');
+  text = text.trim();
+
+  if (text.length >= 2 && text.length <= 50) {
+    course.name = text;
+  } else if (text.length > 50) {
+    course.name = text.substring(0, 40);
+  }
+
+  // 若没提取到课程名但有其他信息，用原始文本兜底（但不含已提取的字段）
+  if (!course.name) {
+    var fallback = rawText.replace(/\s+/g, '').trim();
+    // 移除已知字段后尝试
+    if (course.teacher) {
+      fallback = fallback.replace(/[\u4e00-\u9fa5]{2,4}\(\d{3,6}\)[、,，]?/g, '');
+    }
+    if (fallback.length >= 2 && fallback.length <= 50) {
+      course.name = fallback;
+    }
+  }
+
+  // 严格规则：如果关键信息缺失，不编造
+  if (!course.name && !course.teacher && !course.location) {
+    return null;
+  }
+
+  return course;
+}
+
+// 检测聚类中是否包含多个课程，若包含则按老师名位置拆分
+function splitMultiCourseCluster(cluster, day, startSlot, endSlot) {
+  // 按 y 再按 x 排序
+  var sorted = cluster.slice().sort(function(a, b) {
+    var dy = a.bbox.y0 - b.bbox.y0;
+    if (Math.abs(dy) > 8) return dy;
+    return a.bbox.x0 - b.bbox.x0;
+  });
+  var allText = sorted.map(function(c) { return c.text; }).join('');
+
+  // 统计老师名出现次数（中文名+工号模式）
+  var teacherRegex = /[\u4e00-\u9fa5]{2,4}\(\d{3,6}\)/g;
+  var teacherCount = (allText.match(teacherRegex) || []).length;
+
+  // 统计课程代码出现次数
+  var codeRegex = /[A-Z]{2,5}\d{3,}[A-Z0-9]*/g;
+  var codeCount = (allText.match(codeRegex) || []).length;
+
+  var multiCount = Math.max(teacherCount, codeCount);
+
+  if (multiCount <= 1) {
+    // 单个课程，直接解析
+    var course = parseCellText(allText, day, startSlot, endSlot);
+    return course ? [course] : [];
+  }
+
+  // 多个课程在同一格子内：按老师名出现位置拆分
+  // 找到每个老师名对应的 word 索引
+  var splitPoints = []; // {wordIndex, yBoundary}
+  for (var i = 0; i < sorted.length; i++) {
+    var w = sorted[i];
+    // 检查当前 word 是否包含中文人名（2-4个汉字），且下一个 word 是工号括号
+    if (/^[\u4e00-\u9fa5]{2,4}$/.test(w.text.trim()) && i + 1 < sorted.length) {
+      var nextW = sorted[i + 1];
+      if (/^\(\d{3,6}\)/.test(nextW.text.trim()) || /^\(\d{3,6}/.test(nextW.text.trim())) {
+        // 这是一个老师名+工号的开始
+        if (splitPoints.length > 0) {
+          // 前一个分割点到这里是一个完整的课程块
+          splitPoints[splitPoints.length - 1].endIndex = i - 1;
+        }
+        splitPoints.push({ startIndex: i, endIndex: sorted.length - 1 });
+      }
+    }
+  }
+
+  if (splitPoints.length <= 1) {
+    // 无法按老师名拆分，用更小的 y 间距重新聚类
+    var subGap = 6; // 极小间距，只在有明显空白时拆分
+    var subClusters = clusterWordsByY(sorted, subGap);
+    if (subClusters.length <= 1) {
+      var course = parseCellText(allText, day, startSlot, endSlot);
+      return course ? [course] : [];
+    }
+    var results = [];
+    for (var sci = 0; sci < subClusters.length; sci++) {
+      var subText = subClusters[sci].map(function(c) { return c.text; }).join('');
+      var subCourse = parseCellText(subText, day, startSlot, endSlot);
+      if (subCourse) results.push(subCourse);
+    }
+    return results;
+  }
+
+  // 按分割点拆分
+  var results = [];
+  for (var si = 0; si < splitPoints.length; si++) {
+    var sp = splitPoints[si];
+    var endIdx = (si < splitPoints.length - 1) ? splitPoints[si + 1].startIndex - 1 : sorted.length - 1;
+    if (endIdx < sp.startIndex) endIdx = sp.startIndex;
+    var subWords = sorted.slice(sp.startIndex, endIdx + 1);
+    var subText = subWords.map(function(c) { return c.text; }).join('');
+    var subCourse = parseCellText(subText, day, startSlot, endSlot);
+    if (subCourse) results.push(subCourse);
+  }
+
+  return results;
+}
+
+// 渲染 OCR 识别结果
+function renderOcrResults() {
+  const container = document.getElementById('ocrResults');
+  const summary = document.getElementById('ocrSummary');
+
+  if (!ocrCourses.length) {
+    summary.innerHTML = '<div style="color:var(--accent);font-size:14px;">⚠️ 未能识别出课程信息，请手动添加或尝试更清晰的截图</div>';
+    container.innerHTML = '';
+    return;
+  }
+
+  const complete = ocrCourses.filter(c => !c._incomplete).length;
+  const incomplete = ocrCourses.length - complete;
+
+  summary.innerHTML = `
+    <div class="stat">识别到 <strong>${ocrCourses.length}</strong> 门课程 · <strong style="color:var(--success)">${complete}</strong> 门完整 · <strong style="color:var(--warning)">${incomplete}</strong> 门待补全</div>
+  `;
+
+  container.innerHTML = ocrCourses.map((c, idx) => {
+    const incompleteFields = [];
+    if (!c.name) incompleteFields.push('课程名');
+    if (!c.day) incompleteFields.push('星期');
+    if (!c.startSlot) incompleteFields.push('开始节次');
+    if (!c.endSlot) incompleteFields.push('结束节次');
+
+    const isIncomplete = incompleteFields.length > 0;
+
+    return `
+      <div class="ocr-result-item ${isIncomplete ? 'incomplete' : ''}" data-idx="${idx}">
+        <div class="ori-header">
+          <div class="ori-index">课程 ${idx + 1}</div>
+          ${isIncomplete ? `<div class="ori-warning">⚠️ ${incompleteFields.join('、')}待填写</div>` : '<div style="font-size:12px;color:var(--success);">✓ 信息完整</div>'}
+        </div>
+        <div class="ori-fields">
+          <div class="ori-field ori-field-full">
+            <div class="ori-label">课程名称</div>
+            <input class="ori-input ${!c.name ? 'empty' : ''}" type="text" value="${escapeHtml(c.name || '')}" placeholder="请输入课程名" oninput="updateOcrCourse(${idx}, 'name', this.value)">
+          </div>
+          <div class="ori-field">
+            <div class="ori-label">星期</div>
+            <select class="ori-input ${!c.day ? 'empty' : ''}" onchange="updateOcrCourse(${idx}, 'day', this.value)">
+              <option value="">请选择</option>
+              <option value="1" ${c.day==1?'selected':''}>周一</option>
+              <option value="2" ${c.day==2?'selected':''}>周二</option>
+              <option value="3" ${c.day==3?'selected':''}>周三</option>
+              <option value="4" ${c.day==4?'selected':''}>周四</option>
+              <option value="5" ${c.day==5?'selected':''}>周五</option>
+              <option value="6" ${c.day==6?'selected':''}>周六</option>
+              <option value="7" ${c.day==7?'selected':''}>周日</option>
+            </select>
+          </div>
+          <div class="ori-field">
+            <div class="ori-label">上课地点</div>
+            <input class="ori-input" type="text" value="${escapeHtml(c.location || '')}" placeholder="如：北201" oninput="updateOcrCourse(${idx}, 'location', this.value)">
+          </div>
+          <div class="ori-field">
+            <div class="ori-label">开始节次</div>
+            <select class="ori-input ${!c.startSlot ? 'empty' : ''}" onchange="updateOcrCourse(${idx}, 'startSlot', this.value)">
+              <option value="">请选择</option>
+              ${Array.from({length:TOTAL_SLOTS}, (_,j) => `<option value="${j+1}" ${c.startSlot==j+1?'selected':''}>第${j+1}节</option>`).join('')}
+            </select>
+          </div>
+          <div class="ori-field">
+            <div class="ori-label">结束节次</div>
+            <select class="ori-input ${!c.endSlot ? 'empty' : ''}" onchange="updateOcrCourse(${idx}, 'endSlot', this.value)">
+              <option value="">请选择</option>
+              ${Array.from({length:TOTAL_SLOTS}, (_,j) => `<option value="${j+1}" ${c.endSlot==j+1?'selected':''}>第${j+1}节</option>`).join('')}
+            </select>
+          </div>
+          <div class="ori-field ori-field-full">
+            <div class="ori-label">任课教师</div>
+            <input class="ori-input" type="text" value="${escapeHtml(c.teacher || '')}" placeholder="如：张老师" oninput="updateOcrCourse(${idx}, 'teacher', this.value)">
+          </div>
+        </div>
+        <div class="ori-actions">
+          <button class="del-btn" onclick="removeOcrCourse(${idx})">删除此条</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 更新 OCR 课程的某个字段
+function updateOcrCourse(idx, field, value) {
+  if (!ocrCourses[idx]) return;
+  if (field === 'day' || field === 'startSlot' || field === 'endSlot') {
+    ocrCourses[idx][field] = value ? parseInt(value) : undefined;
+  } else {
+    ocrCourses[idx][field] = value;
+  }
+  // 重新计算完整状态
+  ocrCourses[idx]._incomplete = !ocrCourses[idx].name || !ocrCourses[idx].day || !ocrCourses[idx].startSlot || !ocrCourses[idx].endSlot;
+}
+
+// 删除 OCR 课程条目
+function removeOcrCourse(idx) {
+  ocrCourses.splice(idx, 1);
+  renderOcrResults();
+}
+
+// 切换原始识别文本显示
+function toggleRawText() {
+  const el = document.getElementById('ocrRawText');
+  el.classList.toggle('show');
+}
+
+// 确认导入 OCR 识别的课程
+function confirmOcrImport() {
+  if (!ocrCourses.length) { showToast('没有可导入的课程'); return; }
+
+  let imported = 0;
+  let skipped = 0;
+
+  for (const c of ocrCourses) {
+    // 必须有星期和节次信息才导入，课程名可以后续填写
+    if (!c.day || !c.startSlot || !c.endSlot) {
+      skipped++;
+      continue;
+    }
+    appData.courses.push({
+      id: c.id || uid(),
+      name: c.name || '待填写',
+      location: c.location || '',
+      teacher: c.teacher || '',
+      day: c.day,
+      startSlot: c.startSlot,
+      endSlot: c.endSlot,
+      weeks: c.weeks || [],
+      color: c.color || COURSE_COLORS[imported % COURSE_COLORS.length]
+    });
+    imported++;
+  }
+
+  saveData();
+  closeModal('modalOcr');
+
+  if (imported > 0) {
+    showToast(`成功导入 ${imported} 个课程位置${skipped > 0 ? `，${skipped} 个信息不全已跳过` : ''}，请点击课表中的课程填写详细信息`);
+    renderSchedule();
+  } else {
+    showToast('没有有效的课程位置可导入');
+  }
+}
+
+/* ========== 单课截图识别（粘贴/上传） ========== */
+
+// 在课程模态框中粘贴图片识别
+function setupCoursePasteZone() {
+  var zone = document.getElementById('coursePasteZone');
+
+  // 点击触发文件选择
+  zone.addEventListener('click', function() {
+    document.getElementById('courseImageInput').click();
+  });
+
+  // 粘贴事件
+  zone.addEventListener('paste', function(e) {
+    e.preventDefault();
+    var items = e.clipboardData || e.originalEvent.clipboardData;
+    if (!items) return;
+    for (var i = 0; i < items.items.length; i++) {
+      var item = items.items[i];
+      if (item.type && item.type.startsWith('image/')) {
+        var blob = item.getAsFile();
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          runSingleCourseOcr(ev.target.result);
+        };
+        reader.readAsDataURL(blob);
+        return;
+      }
+    }
+    showToast('剪贴板中没有图片');
+  });
+
+  // 拖拽上传
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.classList.remove('dragover');
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    var file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        runSingleCourseOcr(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
+// 处理文件选择上传的课程图片
+function handleCourseImageFile(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    runSingleCourseOcr(e.target.result);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+// 运行单课截图 OCR
+async function runSingleCourseOcr(imageDataUrl) {
+  var zone = document.getElementById('coursePasteZone');
+  zone.classList.add('loading');
+  zone.innerHTML = '<div class="pz-icon">⏳</div><div class="pz-text">正在识别课程信息...</div>';
+
+  try {
+    if (typeof Tesseract === 'undefined') {
+      zone.querySelector('.pz-text').textContent = '正在加载识别引擎...';
+      await loadTesseractScript();
+    }
+
+    // 图片预处理
+    var processedImage = await preprocessImage(imageDataUrl);
+
+    // OCR 识别
+    var PSM_BLOCK = (Tesseract.PSM && Tesseract.PSM.SINGLE_BLOCK) || 6;
+    var worker = await Tesseract.createWorker('chi_sim', 1, {});
+    await worker.setParameters({
+      tessedit_pageseg_mode: PSM_BLOCK,
+      preserve_interword_spaces: '1',
+    });
+    var result = await worker.recognize(processedImage);
+    await worker.terminate();
+
+    var rawText = postProcessOcrText(result.data.text);
+
+    // 解析课程信息
+    var course = parseCellText(rawText, 0, 0, 0);
+    if (!course) {
+      // 兜底：用原始文本尝试
+      course = { name: rawText.split('\n').filter(l => l.trim()).join('') };
+    }
+
+    // 填充表单
+    if (course.name) {
+      document.getElementById('courseName').value = course.name;
+    }
+    if (course.location) {
+      document.getElementById('courseLocation').value = course.location;
+    }
+    if (course.teacher) {
+      document.getElementById('courseTeacher').value = course.teacher;
+    }
+    // 填充周次
+    if (course.weeks && course.weeks.length > 0) {
+      setWeeksFromOcr(course.weeks);
+    }
+
+    // 恢复粘贴区，显示缩略图
+    zone.classList.remove('loading');
+    zone.innerHTML =
+      '<img class="paste-preview" src="' + imageDataUrl + '" alt="截图预览">' +
+      '<div class="pz-text" style="color:var(--success);">✓ 已识别，请核对信息</div>' +
+      '<div class="pz-hint">可重新粘贴其他截图</div>';
+
+    showToast('识别完成，请核对课程信息');
+  } catch(err) {
+    console.error('单课识别失败:', err);
+    zone.classList.remove('loading');
+    zone.innerHTML =
+      '<div class="pz-icon">📋</div>' +
+      '<div class="pz-text" style="color:var(--accent);">识别失败，请手动填写</div>' +
+      '<div class="pz-hint">Ctrl+V 粘贴 · 或点击此处选择图片</div>';
+    showToast('识别失败：' + (err.message || '请重试'));
+  }
+}
+
+/* ========== 课表交互：单击编辑、长按拖拽、边缘调整 ========== */
+
+// 拖拽状态
+var dragState = {
+  mode: null,        // 'move' | 'resize-top' | 'resize-bottom' | null
+  courseId: null,
+  startSlot: 0,
+  endSlot: 0,
+  origDay: 0,
+  origStart: 0,
+  origEnd: 0,
+  startY: 0,
+  startX: 0,
+  rowHeight: 0,
+  gridRect: null,
+  moved: false,     // 区分单击和拖拽
+  pressTimer: null, // 长按计时器
+  longPressed: false,
+  floatEl: null,    // 跟随鼠标的浮动元素
+  courseEl: null,   // 原始课程方块引用
+};
+
+// 每次 renderSchedule 后重新绑定单元格事件
+function bindScheduleInteractions() {
+  var grid = document.getElementById('scheduleGrid');
+
+  // 空白格子：单击添加
+  grid.querySelectorAll('.sg-cell:not(.has-course)').forEach(function(cell) {
+    cell.addEventListener('click', function() {
+      if (dragState.moved || dragState.longPressed) return;
+      var day = parseInt(cell.dataset.day);
+      var slot = parseInt(cell.dataset.slot);
+      openAddCourse(day, slot);
+    });
+  });
+
+  // 课程方块：绑定事件
+  grid.querySelectorAll('.sg-course[data-cid]').forEach(function(courseEl) {
+    var cid = courseEl.dataset.cid;
+
+    // ---- 单击编辑 ----
+    courseEl.addEventListener('click', function(e) {
+      // 如果点击在手柄上，不进入编辑
+      if (e.target.classList.contains('sg-handle-top') || e.target.classList.contains('sg-handle-bottom')) {
+        return;
+      }
+      // 如果刚拖拽完，跳过本次点击
+      if (dragState.moved || dragState.longPressed) {
+        return;
+      }
+      editCourse(cid);
+    });
+
+    // ---- mousedown：启动长按计时器 ----
+    courseEl.addEventListener('mousedown', function(e) {
+      if (e.target.classList.contains('sg-handle-top') || e.target.classList.contains('sg-handle-bottom')) {
+        return;
+      }
+
+      dragState.moved = false;
+      dragState.longPressed = false;
+      dragState.courseId = cid;
+      dragState.startY = e.clientY;
+      dragState.startX = e.clientX;
+
+      // 获取课程数据
+      var course = appData.courses.find(function(c) { return c.id === cid; });
+      if (course) {
+        dragState.origDay = course.day;
+        dragState.origStart = course.startSlot;
+        dragState.origEnd = course.endSlot;
+      }
+
+      // 获取网格信息
+      var gridEl = document.getElementById('scheduleGrid');
+      dragState.gridRect = gridEl.getBoundingClientRect();
+      // 计算每行高度：取一个 sg-slot-num 的高度
+      var slotCell = gridEl.querySelector('.sg-slot-num');
+      dragState.rowHeight = slotCell ? slotCell.getBoundingClientRect().height + 2 : 50; // +2 for gap
+
+      // 长按计时器：200ms 后进入拖拽模式
+      dragState.pressTimer = setTimeout(function() {
+        dragState.longPressed = true;
+        dragState.mode = 'move';
+        dragState.courseEl = courseEl;
+        // 原方块变淡，加放大脉冲提示拖拽开始
+        courseEl.classList.add('dragging');
+        courseEl.classList.add('dragging-pulse');
+        // 300ms 后去掉脉冲、创建跟随浮层
+        setTimeout(function() {
+          if (dragState.longPressed && courseEl) {
+            courseEl.classList.remove('dragging-pulse');
+            dragState.floatEl = createFloatEl(courseEl);
+            document.body.appendChild(dragState.floatEl);
+          }
+        }, 200);
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+      }, 200);
+    });
+
+    // ---- 顶部边缘拖拽：调整开始节次 ----
+    var handleTop = courseEl.querySelector('.sg-handle-top');
+    if (handleTop) {
+      handleTop.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragState.mode = 'resize-top';
+        dragState.courseId = cid;
+        dragState.moved = false;
+        dragState.startY = e.clientY;
+        var course = appData.courses.find(function(c) { return c.id === cid; });
+        if (course) {
+          dragState.origStart = course.startSlot;
+          dragState.origEnd = course.endSlot;
+        }
+        var gridEl = document.getElementById('scheduleGrid');
+        dragState.gridRect = gridEl.getBoundingClientRect();
+        var slotCell = gridEl.querySelector('.sg-slot-num');
+        dragState.rowHeight = slotCell ? slotCell.getBoundingClientRect().height + 2 : 50;
+        courseEl.classList.add('resizing');
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
+      });
+    }
+
+    // ---- 底部边缘拖拽：调整结束节次 ----
+    var handleBottom = courseEl.querySelector('.sg-handle-bottom');
+    if (handleBottom) {
+      handleBottom.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragState.mode = 'resize-bottom';
+        dragState.courseId = cid;
+        dragState.moved = false;
+        dragState.startY = e.clientY;
+        var course = appData.courses.find(function(c) { return c.id === cid; });
+        if (course) {
+          dragState.origStart = course.startSlot;
+          dragState.origEnd = course.endSlot;
+        }
+        var gridEl = document.getElementById('scheduleGrid');
+        dragState.gridRect = gridEl.getBoundingClientRect();
+        var slotCell = gridEl.querySelector('.sg-slot-num');
+        dragState.rowHeight = slotCell ? slotCell.getBoundingClientRect().height + 2 : 50;
+        courseEl.classList.add('resizing');
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
+      });
+    }
+  });
+}
+
+// 全局 mousemove / mouseup 事件（只绑定一次）
+function bindGlobalScheduleEvents() {
+  document.addEventListener('mousemove', function(e) {
+    if (!dragState.mode) return;
+
+    var dy = e.clientY - dragState.startY;
+    if (Math.abs(dy) > 5) {
+      dragState.moved = true;
+    }
+
+    if (dragState.mode === 'move' && dragState.longPressed) {
+      // 长按拖拽：浮层跟随鼠标 + 高亮目标格子
+      if (dragState.floatEl) {
+        dragState.floatEl.style.left = (e.clientX - dragState.floatEl.offsetWidth / 2) + 'px';
+        dragState.floatEl.style.top = (e.clientY - dragState.floatEl.offsetHeight / 2) + 'px';
+      }
+      clearDragTargets();
+      var targetCell = getCellAtPoint(e.clientX, e.clientY);
+      if (targetCell) {
+        targetCell.classList.add('drag-target');
+        if (targetCell.classList.contains('has-course')) {
+          targetCell.classList.add('drag-target-has-course');
+        }
+      }
+    } else if (dragState.mode === 'resize-top') {
+      // 顶部拖拽：改变 startSlot
+      var slotDelta = Math.round(dy / dragState.rowHeight);
+      var newStart = dragState.origStart + slotDelta;
+      newStart = Math.max(1, Math.min(newStart, dragState.origEnd)); // 不能超过 endSlot
+      if (newStart !== dragState.origStart) {
+        var course = appData.courses.find(function(c) { return c.id === dragState.courseId; });
+        if (course) {
+          course.startSlot = newStart;
+          saveData();
+          renderSchedule();
+        }
+      }
+    } else if (dragState.mode === 'resize-bottom') {
+      // 底部拖拽：改变 endSlot
+      var slotDelta2 = Math.round(dy / dragState.rowHeight);
+      var newEnd = dragState.origEnd + slotDelta2;
+      newEnd = Math.max(newEnd, dragState.origStart); // 不能小于 startSlot
+      newEnd = Math.min(newEnd, TOTAL_SLOTS); // 不超过最后一节
+      if (newEnd !== dragState.origEnd) {
+        var course2 = appData.courses.find(function(c) { return c.id === dragState.courseId; });
+        if (course2) {
+          course2.endSlot = newEnd;
+          saveData();
+          renderSchedule();
+        }
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    // 清除长按计时器
+    if (dragState.pressTimer) {
+      clearTimeout(dragState.pressTimer);
+      dragState.pressTimer = null;
+    }
+
+    if (dragState.mode === 'move' && dragState.longPressed) {
+      // 长按拖拽结束：移动课程到目标格子
+      var targetCell = getCellAtPoint(e.clientX, e.clientY);
+      var dropDay = 0, dropSlot = 0, movedOk = false;
+      if (targetCell) {
+        var newDay = parseInt(targetCell.dataset.day);
+        var newSlot = parseInt(targetCell.dataset.slot);
+        if (newDay && newSlot) {
+          var course = appData.courses.find(function(c) { return c.id === dragState.courseId; });
+          if (course) {
+            var span = course.endSlot - course.startSlot;
+            course.day = newDay;
+            course.startSlot = newSlot;
+            course.endSlot = Math.min(newSlot + span, TOTAL_SLOTS);
+            saveData();
+            dropDay = newDay; dropSlot = newSlot; movedOk = true;
+          }
+        }
+      }
+      // 移除浮层
+      if (dragState.floatEl) { dragState.floatEl.remove(); dragState.floatEl = null; }
+      // 立即重新渲染课表
+      if (movedOk) {
+        renderSchedule();
+        // 播放放置特效
+        setTimeout(function() {
+          playDropEffect(dropDay, dropSlot);
+        }, 10);
+        showToast('课程已移动到 ' + DAY_NAMES[dropDay] + ' 第' + dropSlot + '节');
+      }
+    } else if (!dragState.moved && !dragState.longPressed && dragState.courseId && dragState.mode !== 'resize-top' && dragState.mode !== 'resize-bottom') {
+      // 纯单击逻辑现在由 click 事件处理，这里不做 editCourse
+    }
+
+    // 重置状态
+    clearDragTargets();
+    document.querySelectorAll('.sg-course.dragging, .sg-course.resizing, .sg-course.dragging-pulse').forEach(function(el) {
+      el.classList.remove('dragging');
+      el.classList.remove('resizing');
+      el.classList.remove('dragging-pulse');
+    });
+    if (dragState.floatEl) { dragState.floatEl.remove(); dragState.floatEl = null; }
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    var wasMoved = dragState.moved;
+    var wasLongPressed = dragState.longPressed;
+    dragState.mode = null;
+    dragState.courseId = null;
+    // 不立即清除 moved / longPressed，让随后的 click 事件能检测到
+    // click 在 mouseup 之后触发，此时 moved/longPressed 仍保留
+    // 50ms 后清除，确保 click 已触发完毕
+    setTimeout(function() {
+      dragState.moved = false;
+      dragState.longPressed = false;
+    }, 50);
+    // resize 模式下拖拽结束时即时刷新
+    if (wasMoved && !wasLongPressed && currentView === 'schedule') {
+      renderSchedule();
+    }
+  });
+
+  // 触摸事件支持（移动端长按拖拽）
+  document.addEventListener('touchstart', function(e) {
+    var touch = e.touches[0];
+    var target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!target) return;
+    if (target.classList.contains('sg-handle-top') || target.classList.contains('sg-handle-bottom')) return;
+    var courseEl = target.closest('.sg-course[data-cid]');
+    if (!courseEl) return;
+    var cid = courseEl.dataset.cid;
+    var course = appData.courses.find(function(c) { return c.id === cid; });
+    if (!course) return;
+
+    dragState.courseId = cid;
+    dragState.moved = false;
+    dragState.longPressed = false;
+    dragState.startY = touch.clientY;
+    dragState.startX = touch.clientX;
+    dragState.origDay = course.day;
+    dragState.origStart = course.startSlot;
+    dragState.origEnd = course.endSlot;
+    var gridEl = document.getElementById('scheduleGrid');
+    dragState.gridRect = gridEl.getBoundingClientRect();
+    var slotCell = gridEl.querySelector('.sg-slot-num');
+    dragState.rowHeight = slotCell ? slotCell.getBoundingClientRect().height + 2 : 50;
+
+    dragState.pressTimer = setTimeout(function() {
+      dragState.longPressed = true;
+      dragState.mode = 'move';
+      dragState.courseEl = courseEl;
+      courseEl.classList.add('dragging');
+      courseEl.classList.add('dragging-pulse');
+      setTimeout(function() {
+        if (dragState.longPressed && courseEl) {
+          courseEl.classList.remove('dragging-pulse');
+          dragState.floatEl = createFloatEl(courseEl);
+          document.body.appendChild(dragState.floatEl);
+        }
+      }, 200);
+      e.preventDefault();
+    }, 200);
+  }, { passive: false });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!dragState.mode || !dragState.longPressed) return;
+    e.preventDefault();
+    var touch = e.touches[0];
+    dragState.moved = true;
+    if (dragState.floatEl) {
+      dragState.floatEl.style.left = (touch.clientX - dragState.floatEl.offsetWidth / 2) + 'px';
+      dragState.floatEl.style.top = (touch.clientY - dragState.floatEl.offsetHeight / 2) + 'px';
+    }
+    clearDragTargets();
+    var targetCell = getCellAtPoint(touch.clientX, touch.clientY);
+    if (targetCell) {
+      targetCell.classList.add('drag-target');
+      if (targetCell.classList.contains('has-course')) {
+        targetCell.classList.add('drag-target-has-course');
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(e) {
+    if (dragState.pressTimer) {
+      clearTimeout(dragState.pressTimer);
+      dragState.pressTimer = null;
+    }
+    if (dragState.mode === 'move' && dragState.longPressed) {
+      var touch = e.changedTouches[0];
+      var targetCell = getCellAtPoint(touch.clientX, touch.clientY);
+      var dropDay = 0, dropSlot = 0, movedOk = false;
+      if (targetCell) {
+        var newDay = parseInt(targetCell.dataset.day);
+        var newSlot = parseInt(targetCell.dataset.slot);
+        if (newDay && newSlot) {
+          var course = appData.courses.find(function(c) { return c.id === dragState.courseId; });
+          if (course) {
+            var span = course.endSlot - course.startSlot;
+            course.day = newDay;
+            course.startSlot = newSlot;
+            course.endSlot = Math.min(newSlot + span, TOTAL_SLOTS);
+            saveData();
+            dropDay = newDay; dropSlot = newSlot; movedOk = true;
+          }
+        }
+      }
+      if (dragState.floatEl) { dragState.floatEl.remove(); dragState.floatEl = null; }
+      if (movedOk) {
+        renderSchedule();
+        setTimeout(function() { playDropEffect(dropDay, dropSlot); }, 10);
+        showToast('课程已移动到 ' + DAY_NAMES[dropDay] + ' 第' + dropSlot + '节');
+      }
+    } else if (!dragState.moved && !dragState.longPressed && dragState.courseId) {
+      // 纯单击逻辑由 click 事件处理，这里不做 editCourse
+    }
+    clearDragTargets();
+    document.querySelectorAll('.sg-course.dragging, .sg-course.dragging-pulse').forEach(function(el) {
+      el.classList.remove('dragging');
+      el.classList.remove('dragging-pulse');
+    });
+    if (dragState.floatEl) { dragState.floatEl.remove(); dragState.floatEl = null; }
+    dragState.mode = null;
+    dragState.courseId = null;
+    // 延迟清除标志，让随后的 click 事件能检测到拖拽状态
+    setTimeout(function() {
+      dragState.moved = false;
+      dragState.longPressed = false;
+    }, 50);
+  });
+}
+
+// 根据鼠标坐标找到对应的格子
+function getCellAtPoint(clientX, clientY) {
+  var grid = document.getElementById('scheduleGrid');
+  var cells = grid.querySelectorAll('.sg-cell[data-day][data-slot]');
+  for (var i = 0; i < cells.length; i++) {
+    var rect = cells[i].getBoundingClientRect();
+    if (clientX >= rect.left && clientX <= rect.right &&
+        clientY >= rect.top && clientY <= rect.bottom) {
+      return cells[i];
+    }
+  }
+  return null;
+}
+
+// 清除所有拖拽高亮
+function clearDragTargets() {
+  document.querySelectorAll('.sg-cell.drag-target, .sg-cell.drag-target-has-course').forEach(function(el) {
+    el.classList.remove('drag-target');
+    el.classList.remove('drag-target-has-course');
+  });
+}
+
+// 创建跟随鼠标的浮动课程块
+function createFloatEl(courseEl) {
+  var floatEl = document.createElement('div');
+  floatEl.className = 'drag-float';
+  var bg = courseEl.style.background;
+  floatEl.style.background = bg;
+  var w = courseEl.offsetWidth;
+  var h = courseEl.offsetHeight;
+  floatEl.style.width = w + 'px';
+  floatEl.style.height = h + 'px';
+  var nameEl = courseEl.querySelector('.sg-c-name');
+  var locEl = courseEl.querySelector('.sg-c-loc');
+  floatEl.innerHTML = '<div class="df-name">' + (nameEl ? nameEl.textContent : '') + '</div>' +
+    (locEl ? '<div class="df-loc">' + locEl.textContent + '</div>' : '');
+  return floatEl;
+}
+
+// 播放放置成功特效
+function playDropEffect(day, slot) {
+  var grid = document.getElementById('scheduleGrid');
+  // 闪烁目标格子
+  var cell = grid.querySelector('.sg-cell[data-day="' + day + '"][data-slot="' + slot + '"]');
+  if (cell) {
+    cell.classList.add('drop-flash');
+    setTimeout(function() { cell.classList.remove('drop-flash'); }, 500);
+  }
+  // 脉冲课程方块
+  var course = grid.querySelector('.sg-course[data-cid]');
+  var cells = grid.querySelectorAll('.sg-cell.has-course[data-day="' + day + '"][data-slot="' + slot + '"]');
+  if (cells.length > 0) {
+    var cEl = cells[0].querySelector('.sg-course');
+    if (cEl) {
+      cEl.classList.add('dropped');
+      setTimeout(function() { cEl.classList.remove('dropped'); }, 500);
+    }
+  }
+}
+
+/* ========== 初始化 ========== */
+function init() {
+  // 填充节次下拉
+  const startSel = document.getElementById('courseStartSlot');
+  const endSel = document.getElementById('courseEndSlot');
+  for (let i = 1; i <= TOTAL_SLOTS; i++) {
+    const t = TIME_SLOTS[i - 1];
+    startSel.innerHTML += `<option value="${i}">第${i}节 ${t.start}</option>`;
+    endSel.innerHTML += `<option value="${i}">第${i}节 ${t.end}</option>`;
+  }
+
+  loadData();
+  renderColorPicker();
+  renderToday();
+  setupCoursePasteZone();
+  bindGlobalScheduleEvents();
+
+  // 每分钟刷新今日页面（倒计时）
+  setInterval(() => {
+    if (currentView === 'today') renderToday();
+  }, 60000);
+}
+
+init();
+</script>
+</body>
+</html>
