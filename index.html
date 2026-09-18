@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>课表提醒助手</title>
+<meta name="theme-color" content="#4A90D9">
+<meta name="description" content="大学生课表管理与提醒助手，支持帖子广场、签到积分">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
 /* ========== CSS 变量 / 主题 ========== */
 :root {
@@ -54,6 +59,7 @@ ul { list-style: none; }
   background: var(--card);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  user-select: none; -webkit-user-select: none;
 }
 .nav-bar .logo { font-size: 18px; font-weight: 700; color: var(--primary); }
 .nav-bar .logo span { color: var(--text); }
@@ -67,6 +73,7 @@ ul { list-style: none; }
   border-top: 1px solid var(--border);
   padding-bottom: var(--safe-bottom);
   box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  user-select: none; -webkit-user-select: none;
 }
 .tab-item {
   flex: 1;
@@ -74,6 +81,8 @@ ul { list-style: none; }
   padding: 10px 0 8px;
   color: var(--text-light);
   transition: color .2s;
+  user-select: none; -webkit-user-select: none;
+  cursor: pointer;
 }
 .tab-item.active { color: var(--primary); }
 .tab-item .tab-icon { font-size: 22px; line-height: 1; }
@@ -101,6 +110,7 @@ ul { list-style: none; }
 
 /* ========== 今日概览页 ========== */
 .today-hero {
+  position: relative;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   border-radius: var(--radius);
   padding: 24px 20px;
@@ -147,6 +157,172 @@ ul { list-style: none; }
 .status-badge.ongoing { background: var(--success-light); color: var(--success); }
 .status-badge.upcoming { background: var(--primary-light); color: var(--primary); }
 .status-badge.done { background: #F5F5F5; color: var(--text-light); }
+
+/* ===== 课程签到按钮（积分系统） ===== */
+.course-item-today .right-col {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; flex-shrink: 0;
+}
+.checkin-btn {
+  padding: 5px 14px; border-radius: 14px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  white-space: nowrap; border: none;
+  transition: all .2s;
+  user-select: none; -webkit-user-select: none;
+}
+.checkin-btn.inactive {
+  background: #F0F0F0; color: var(--text-light); cursor: default;
+}
+.checkin-btn.active {
+  background: var(--primary); color: #fff; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(74,144,217,0.4);
+  animation: checkinPulse 2s ease-in-out infinite;
+}
+.checkin-btn.active:active { transform: scale(.92); background: var(--primary-dark); }
+.checkin-btn.done {
+  background: var(--success-light); color: var(--success); cursor: default;
+}
+@keyframes checkinPulse {
+  0%, 100% { box-shadow: 0 2px 10px rgba(74,144,217,0.35); }
+  50% { box-shadow: 0 2px 16px rgba(74,144,217,0.65); }
+}
+.today-hero .hero-points {
+  position: absolute; top: 18px; right: 18px;
+  background: rgba(255,255,255,.22);
+  padding: 4px 12px; border-radius: 20px;
+  font-size: 13px; font-weight: 700;
+  user-select: none; -webkit-user-select: none;
+}
+.points-summary-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.points-big { font-size: 34px; font-weight: 800; color: var(--primary); line-height: 1.2; }
+.points-sub { font-size: 12px; color: var(--text-secondary); }
+.points-rule {
+  font-size: 12px; color: var(--text-secondary);
+  background: var(--bg); border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  user-select: none; -webkit-user-select: none;
+}
+.checkin-history { margin-top: 16px; }
+.checkin-history h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.checkin-history ul li {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 13px; padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.checkin-history ul li:last-child { border-bottom: none; }
+.checkin-history .chk-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.checkin-history .chk-meta { color: var(--text-secondary); font-size: 12px; flex-shrink: 0; }
+
+/* ========== 帖子广场 ========== */
+.community-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+  user-select: none; -webkit-user-select: none;
+}
+.community-head .reminder-filters { flex: 1; margin-bottom: 0; padding-bottom: 0; }
+.community-refresh {
+  flex-shrink: 0; width: 34px; height: 34px; padding: 0;
+  border-radius: 50%; font-size: 16px;
+  background: var(--card); border: 1px solid var(--border);
+  cursor: pointer; transition: transform .3s;
+  user-select: none; -webkit-user-select: none;
+}
+.community-refresh:active { transform: rotate(180deg); }
+.community-me {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--text-secondary);
+  margin-bottom: 10px;
+  user-select: none; -webkit-user-select: none;
+}
+.community-nick { font-weight: 600; color: var(--text); }
+.community-nick-btn {
+  font-size: 11px; color: var(--primary);
+  background: var(--primary-light); border: none;
+  padding: 3px 10px; border-radius: 12px; cursor: pointer;
+}
+.post-card {
+  background: var(--card); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow); padding: 14px; margin-bottom: 12px;
+}
+.post-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.post-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #fff;
+}
+.post-nick { font-weight: 600; font-size: 13px; }
+.post-meta-row { display: flex; align-items: center; gap: 6px; }
+.post-time { font-size: 11px; color: var(--text-light); }
+.post-cat {
+  font-size: 10px; padding: 1px 8px; border-radius: 10px;
+  background: var(--primary-light); color: var(--primary);
+  font-weight: 600; white-space: nowrap;
+}
+.post-del-btn {
+  margin-left: auto; font-size: 11px; color: var(--text-light);
+  background: none; border: none; cursor: pointer; padding: 2px 6px;
+  user-select: none; -webkit-user-select: none;
+}
+.post-del-btn:hover { color: var(--accent); }
+.post-content { font-size: 14px; line-height: 1.7; word-break: break-word; margin-bottom: 10px; }
+.post-actions { display: flex; gap: 18px; border-top: 1px solid var(--border); padding-top: 10px; }
+.post-action-btn {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary);
+  background: none; border: none; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+  transition: color .2s, transform .1s;
+}
+.post-action-btn:active { transform: scale(1.15); }
+.post-action-btn.liked { color: var(--accent); font-weight: 600; }
+.comment-area { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.comment-item { display: flex; gap: 8px; padding: 6px 0; font-size: 13px; }
+.comment-item .c-nick { color: var(--primary); font-weight: 600; flex-shrink: 0; }
+.comment-item .c-text { flex: 1; word-break: break-word; }
+.comment-item .c-del { font-size: 11px; color: var(--text-light); background: none; border: none; cursor: pointer; flex-shrink: 0; }
+.comment-item .c-del:hover { color: var(--accent); }
+.comment-input-row { display: flex; gap: 8px; margin-top: 8px; }
+.comment-input-row input {
+  flex: 1; min-width: 0; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 18px;
+  padding: 8px 14px; outline: none; background: var(--bg);
+}
+.comment-input-row input:focus { border-color: var(--primary); }
+.comment-send {
+  flex-shrink: 0; padding: 8px 16px; border-radius: 18px;
+  background: var(--primary); color: #fff; font-size: 13px;
+  border: none; cursor: pointer; font-weight: 600;
+  user-select: none; -webkit-user-select: none;
+}
+.post-cat-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.post-cat-picker .pc-chip {
+  padding: 5px 14px; border-radius: 16px; font-size: 12px;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text-secondary);
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+}
+.post-cat-picker .pc-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ========== 微信内打开引导 ========== */
+.wechat-guide {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(26, 26, 46, 0.86);
+  z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+}
+.wechat-guide .wg-card {
+  position: relative;
+  width: 78%; max-width: 300px;
+  background: var(--card); border-radius: 20px;
+  padding: 28px 22px; text-align: center;
+}
+.wg-emoji { font-size: 44px; margin-bottom: 10px; }
+.wg-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.wg-text { font-size: 13px; color: var(--text-secondary); line-height: 1.8; }
+.wg-arrow {
+  position: absolute; top: -46px; right: 10px;
+  font-size: 36px; color: #FFD666;
+  animation: wgBounce 1.2s ease-in-out infinite;
+}
+@keyframes wgBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
 .reminder-item-today {
   display: flex; align-items: center; gap: 10px;
@@ -231,9 +407,16 @@ ul { list-style: none; }
   color: var(--text-light);
   font-weight: 500;
   letter-spacing: 4px;
-  border-left: 2px solid var(--border);
-  border-right: 2px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
 }
+.schedule-grid .sg-break:active { cursor: grabbing; }
+.schedule-grid .sg-break.dragging { opacity: 0.5; background: var(--primary-light); }
+.schedule-grid .sg-break.drop-target { outline: 2px dashed var(--primary); outline-offset: -2px; }
+.schedule-grid .sg-slot-num { cursor: pointer; }
+.schedule-grid .sg-slot-num:active { background: var(--primary-light); }
 .schedule-grid .sg-cell {
   background: var(--card);
   min-height: 56px;
@@ -522,11 +705,18 @@ ul { list-style: none; }
 .paste-preview { max-width: 100%; max-height: 120px; border-radius: 6px; margin-top: 8px; }
 
 /* ========== 提醒事项页 ========== */
+.filters-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 12px;
+  user-select: none; -webkit-user-select: none;
+}
 .reminder-filters {
+  flex: 1; min-width: 0;
   display: flex; gap: 8px; overflow-x: auto;
-  padding-bottom: 8px; margin-bottom: 12px;
+  padding-bottom: 8px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  user-select: none; -webkit-user-select: none;
 }
 .reminder-filters::-webkit-scrollbar { display: none; }
 .filter-chip {
@@ -536,8 +726,26 @@ ul { list-style: none; }
   background: var(--card); border: 1px solid var(--border);
   color: var(--text-secondary);
   transition: all .2s;
+  cursor: pointer;
+  user-select: none; -webkit-user-select: none;
 }
 .filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.filter-arrow {
+  flex-shrink: 0;
+  width: 30px; height: 30px; padding: 0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; line-height: 1;
+  color: var(--text-secondary);
+  background: var(--card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all .2s;
+  user-select: none; -webkit-user-select: none;
+}
+.filter-arrow:active { background: var(--primary-light); color: var(--primary); }
+.filter-arrow:disabled { opacity: 0.3; cursor: default; }
+.filter-arrow.hidden { display: none; }
 
 .reminder-item {
   display: flex; align-items: flex-start; gap: 12px;
@@ -625,6 +833,7 @@ ul { list-style: none; }
   box-shadow: 0 4px 16px rgba(74,144,217,0.4);
   z-index: 90;
   transition: transform .15s;
+  user-select: none; -webkit-user-select: none;
 }
 .fab:active { transform: scale(0.92); }
 
@@ -761,6 +970,7 @@ ul { list-style: none; }
 <!-- ========== 今日概览 ========== -->
 <div class="view active" id="view-today">
   <div class="today-hero" id="todayHero">
+    <div class="hero-points" id="heroPoints" title="签到可得积分">⭐ <span id="heroPointsValue">0</span></div>
     <div class="hero-date" id="heroDate"></div>
     <div class="hero-weekday" id="heroWeekday"></div>
     <div class="hero-week" id="heroWeek"></div>
@@ -817,16 +1027,79 @@ ul { list-style: none; }
 
 <!-- ========== 提醒事项 ========== -->
 <div class="view" id="view-reminders">
-  <div class="reminder-filters" id="reminderFilters">
-    <div class="filter-chip active" data-filter="all" onclick="filterReminders('all')">全部</div>
-    <div class="filter-chip" data-filter="pending" onclick="filterReminders('pending')">待办</div>
-    <div class="filter-chip" data-filter="done" onclick="filterReminders('done')">已完成</div>
-    <div class="filter-chip" data-filter="exam" onclick="filterReminders('exam')">考试</div>
-    <div class="filter-chip" data-filter="homework" onclick="filterReminders('homework')">作业</div>
-    <div class="filter-chip" data-filter="activity" onclick="filterReminders('activity')">活动</div>
-    <div class="filter-chip" data-filter="personal" onclick="filterReminders('personal')">个人</div>
+  <div class="filters-row" id="filtersRow">
+    <button class="filter-arrow" id="filterArrowLeft" onclick="scrollFilters(-1)" aria-label="向左翻动分类">‹</button>
+    <div class="reminder-filters" id="reminderFilters">
+      <div class="filter-chip active" data-filter="all" onclick="filterReminders('all')">全部</div>
+      <div class="filter-chip" data-filter="pending" onclick="filterReminders('pending')">待办</div>
+      <div class="filter-chip" data-filter="done" onclick="filterReminders('done')">已完成</div>
+      <div class="filter-chip" data-filter="exam" onclick="filterReminders('exam')">考试</div>
+      <div class="filter-chip" data-filter="homework" onclick="filterReminders('homework')">作业</div>
+      <div class="filter-chip" data-filter="activity" onclick="filterReminders('activity')">活动</div>
+      <div class="filter-chip" data-filter="personal" onclick="filterReminders('personal')">个人</div>
+    </div>
+    <button class="filter-arrow" id="filterArrowRight" onclick="scrollFilters(1)" aria-label="向右翻动分类">›</button>
   </div>
   <div id="reminderList"></div>
+</div>
+
+<!-- ========== 帖子广场 ========== -->
+<div class="view" id="view-community">
+  <div class="community-head">
+    <div class="reminder-filters" id="communityFilters">
+      <div class="filter-chip active" data-cfilter="全部" onclick="filterCommunity('全部')">全部</div>
+      <div class="filter-chip" data-cfilter="闲聊" onclick="filterCommunity('闲聊')">闲聊</div>
+      <div class="filter-chip" data-cfilter="提问" onclick="filterCommunity('提问')">提问</div>
+      <div class="filter-chip" data-cfilter="找搭子" onclick="filterCommunity('找搭子')">找搭子</div>
+      <div class="filter-chip" data-cfilter="吐槽" onclick="filterCommunity('吐槽')">吐槽</div>
+    </div>
+    <button class="community-refresh" id="communityRefresh" onclick="loadCommunityPosts(true)" title="刷新">🔄</button>
+  </div>
+  <div class="community-me">
+    <span id="communityMyNick" class="community-nick"></span>
+    <button class="community-nick-btn" onclick="changeNickname()">换昵称</button>
+  </div>
+  <div id="communityList"></div>
+  <div id="communityOffline" style="display:none;">
+    <div class="empty-state">
+      <div class="emoji">📴</div>
+      <div class="text">当前离线或云服务不可用<br>帖子功能暂不可用，课表等功能不受影响</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 发帖弹窗 ========== -->
+<div class="modal-overlay" id="modalPost">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>发布帖子</h2>
+      <button class="modal-close" onclick="closeModal('modalPost')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">分类</label>
+      <div class="post-cat-picker" id="postCatPicker"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">内容<span id="postCharCount" style="float:right;font-weight:400;color:var(--text-light);"></span></label>
+      <textarea class="form-textarea" id="postContent" rows="5" maxlength="500" placeholder="分享点什么吧（500字以内）" oninput="updatePostCharCount()"></textarea>
+    </div>
+    <button class="btn-primary" onclick="submitPost()">发布</button>
+  </div>
+</div>
+
+<!-- ========== 删除确认弹窗 ========== -->
+<div class="modal-overlay" id="modalDeleteConfirm">
+  <div class="modal-content" style="max-width:320px;">
+    <div class="modal-header">
+      <h2>删除确认</h2>
+      <button class="modal-close" onclick="closeModal('modalDeleteConfirm')">×</button>
+    </div>
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">删除后无法恢复（评论与点赞会一并删除），确定要删除吗？</p>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-primary" style="flex:1;background:#fff;color:var(--text);border:1px solid var(--border);" onclick="closeModal('modalDeleteConfirm')">取消</button>
+      <button class="btn-primary" style="flex:1;background:var(--accent);" onclick="confirmDeleteTarget()">删除</button>
+    </div>
+  </div>
 </div>
 
 <!-- ========== 设置 ========== -->
@@ -842,6 +1115,27 @@ ul { list-style: none; }
       </div>
       <button class="btn-primary" onclick="saveSemesterSettings()">保存学期设置</button>
     </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="sg-label">积分系统</div>
+    <div class="settings-section">
+      <div class="points-summary-row">
+        <div class="points-big" id="pointsBig">⭐ 0</div>
+        <div class="points-sub" id="pointsSub">累计签到 0 次</div>
+      </div>
+      <div class="points-rule">规则：每节课开始时间的前后 5 分钟内，可在今日课程列表点击「签到」，每次 +5 积分。每节课每天仅可签到一次。</div>
+      <div class="checkin-history" id="checkinHistory"></div>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="sg-label">应用安装</div>
+    <div class="settings-item" id="installItem" style="display:none;">
+      <span class="si-label">安装到手机桌面（离线可用）</span>
+      <button class="btn-export" onclick="promptInstall()">安装</button>
+    </div>
+    <div class="about-text" style="padding:6px 2px;font-size:12px;">安卓手机用 Chrome 打开本站后，可安装到桌面当 APP 使用；微信内打开请按引导浮层切换到浏览器。</div>
   </div>
 
   <div class="settings-group">
@@ -892,6 +1186,10 @@ ul { list-style: none; }
   <div class="tab-item" data-view="reminders" onclick="switchView('reminders')">
     <div class="tab-icon">📌</div>
     <div class="tab-label">提醒</div>
+  </div>
+  <div class="tab-item" data-view="community" onclick="switchView('community')">
+    <div class="tab-icon">💬</div>
+    <div class="tab-label">广场</div>
   </div>
   <div class="tab-item" data-view="settings" onclick="switchView('settings')">
     <div class="tab-icon">⚙️</div>
@@ -1030,6 +1328,28 @@ ul { list-style: none; }
   </div>
 </div>
 
+<!-- ========== 节次时间编辑模态框 ========== -->
+<div class="modal-overlay" id="modalSlotTime">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="slotTimeTitle">调整节次时间</h2>
+      <button class="modal-close" onclick="closeModal('modalSlotTime')">×</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">开始时间</label>
+        <input class="form-input" id="slotTimeStart" type="time">
+      </div>
+      <div class="form-group">
+        <label class="form-label">结束时间</label>
+        <input class="form-input" id="slotTimeEnd" type="time">
+      </div>
+    </div>
+    <input type="hidden" id="slotTimeEditSlot">
+    <button class="btn-primary" onclick="saveSlotTime()">保存时间</button>
+  </div>
+</div>
+
 <!-- ========== OCR 截图导入模态框 ========== -->
 <div class="modal-overlay" id="modalOcr">
   <div class="modal-content" style="max-width:560px;">
@@ -1076,10 +1396,27 @@ ul { list-style: none; }
 <!-- ========== Toast ========== -->
 <div class="toast" id="toast"></div>
 
+<!-- ========== 微信内打开引导 ========== -->
+<div class="wechat-guide" id="wechatGuide" style="display:none;">
+  <div class="wg-card">
+    <div class="wg-emoji">📲</div>
+    <div class="wg-title">请在浏览器中打开</div>
+    <div class="wg-text">微信内无法正常使用本应用<br>请点击右上角 <b>···</b> → 选择「在浏览器打开」</div>
+    <div class="wg-arrow">↗</div>
+  </div>
+</div>
+
+<!-- Supabase 客户端（帖子广场云后端，匿名只读密钥，可公开暴露） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 /* ========== 数据模型 & 存储 ========== */
 const STORAGE_KEY = 'scheduleReminderApp';
 const TOTAL_SLOTS = 11; // 每天最多11节课（无第12节）
+
+// ===== 帖子广场云后端配置（Supabase，publishable key 设计为可公开） =====
+const SUPABASE_URL = 'https://egwuciyieaqvavhfpzbc.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_xY_Ja3dTnie9ko04Y495cA_yg4mWd7e';
 const TIME_SLOTS = [
   { start: '08:00', end: '08:45' },
   { start: '08:50', end: '09:35' },
@@ -1110,7 +1447,509 @@ function getCourseTextColor(course) {
 }
 const TAG_NAMES = { exam: '考试', homework: '作业', activity: '活动', personal: '个人' };
 
-let appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16 } };
+// ===== 签到积分系统常量 =====
+const CHECKIN_WINDOW_MIN = 5;  // 签到窗口：课程开始时间前后各 5 分钟
+const CHECKIN_REWARD = 5;     // 每次签到奖励积分
+
+// 计算某门课当前签到状态：inactive(灰色不可点) / active(蓝色可点) / done(已签到)
+function getCheckinState(course, now) {
+  if (!now) now = new Date();
+  const dateStr = formatDate(now);
+  if ((appData.checkins || []).some(k => k.courseId === course.id && k.date === dateStr)) return 'done';
+  const slot = TIME_SLOTS[course.startSlot - 1];
+  if (!slot) return 'inactive';
+  const sp = slot.start.split(':');
+  const startSec = parseInt(sp[0]) * 3600 + parseInt(sp[1]) * 60;
+  const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  return Math.abs(nowSec - startSec) <= CHECKIN_WINDOW_MIN * 60 ? 'active' : 'inactive';
+}
+
+// 点击签到：窗口内可得 5 积分，每节课每天限一次
+function doCheckin(courseId, ev) {
+  if (ev && ev.stopPropagation) ev.stopPropagation(); // 防止触发卡片的编辑弹窗
+  const course = appData.courses.find(c => c.id === courseId);
+  if (!course) return;
+  const now = new Date();
+  if (getCheckinState(course, now) !== 'active') return; // 窗口外或已签到，忽略
+  appData.points = (appData.points || 0) + CHECKIN_REWARD;
+  appData.checkins = appData.checkins || [];
+  const slot = TIME_SLOTS[course.startSlot - 1];
+  appData.checkins.push({
+    courseId: courseId,
+    courseName: course.name,
+    date: formatDate(now),
+    time: slot ? slot.start : '',
+    slot: course.startSlot,
+    points: CHECKIN_REWARD,
+    ts: now.getTime()
+  });
+  saveData();
+  showToast('签到成功 +' + CHECKIN_REWARD + ' 积分 ⭐');
+  updateCheckinButtons();
+  updateHeroPoints();
+}
+
+// 轻量刷新所有签到按钮状态（不重建课程列表）
+function updateCheckinButtons() {
+  const now = new Date();
+  document.querySelectorAll('#todayCourseList .checkin-btn').forEach(btn => {
+    const courseId = btn.dataset.courseId;
+    const course = appData.courses.find(c => c.id === courseId);
+    if (!course) return;
+    const state = getCheckinState(course, now);
+    btn.dataset.state = state;
+    btn.className = 'checkin-btn ' + state;
+    btn.textContent = state === 'done' ? '已签到 ✓' : '签到';
+    btn.disabled = state !== 'active';
+  });
+}
+
+// 更新今日页右上角积分徽章
+function updateHeroPoints() {
+  const el = document.getElementById('heroPointsValue');
+  if (el) el.textContent = appData.points || 0;
+}
+
+/* ========== 帖子广场（Supabase 云社区） ========== */
+const COMMUNITY_IDENTITY_KEY = 'community_identity';
+const COMMUNITY_CATEGORIES = ['闲聊', '提问', '找搭子', '吐槽'];
+const NICK_ADJ = ['软乎乎', '甜津津', '慢悠悠', '懒洋洋', '亮晶晶', '暖乎乎'];
+const NICK_NOUN = ['牛奶糖', '小熊饼', '苏打饼', '糯米糍', '布丁猫', '小汤圆'];
+const AVATAR_COLORS = ['#B8DCF5', '#C3E6B7', '#F8CDBE', '#FAE3A8', '#D9CBEA', '#BFE5E0', '#F5CFE4'];
+// 基础敏感词表（用户可自行增删）
+const BAD_WORDS = ['加微信', '兼职刷单', '博彩', '赌博', '裸聊', '代考包过', '小额贷款'];
+let sb = null;                     // Supabase 客户端
+let communityReady = false;        // 云端是否可用
+let communityFilter = '全部';      // 当前分类筛选
+let communityPosts = [];           // 帖子缓存
+let communityStats = {};           // postId -> {like_count, comment_count}
+let communityMyLikes = {};        // postId -> true（我点过赞的）
+let communityComments = {};        // postId -> 评论数组
+let expandedPostId = null;         // 当前展开评论的帖子
+let communityCommentDraft = '';    // 评论输入草稿（防止重渲染丢失）
+let deleteTarget = null;           // 待删除目标 {type, id, postId}
+let postCatSelected = '闲聊';       // 发帖弹窗选中分类
+let communityChannel = null;        // 实时订阅通道
+let communityLoadedOnce = false;
+let communityInitTried = false;
+let lastPostTime = 0;              // 发帖限流
+
+// 获取/生成本地匿名身份（userId 稳定不变，昵称可换）
+function getIdentity() {
+  let id = null;
+  try { id = JSON.parse(localStorage.getItem(COMMUNITY_IDENTITY_KEY)); } catch(e) {}
+  if (id && id.userId && id.nickname) return id;
+  id = {
+    userId: Math.random().toString(36).slice(2, 10) + Date.now().toString(36),
+    nickname: NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] + '的' + NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)],
+    createdAt: new Date().toISOString()
+  };
+  try { localStorage.setItem(COMMUNITY_IDENTITY_KEY, JSON.stringify(id)); } catch(e) {}
+  return id;
+}
+
+// 换随机昵称（userId 不变，历史帖昵称不回改）
+function changeNickname() {
+  const id = getIdentity();
+  id.nickname = NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] + '的' + NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)];
+  try { localStorage.setItem(COMMUNITY_IDENTITY_KEY, JSON.stringify(id)); } catch(e) {}
+  renderCommunityMe();
+  showToast('已换昵称：' + id.nickname);
+}
+
+function renderCommunityMe() {
+  const el = document.getElementById('communityMyNick');
+  if (el) el.textContent = '我的昵称：' + getIdentity().nickname;
+}
+
+// 稳定哈希（头像颜色用）
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+// 初始化云连接（离线/CDN失败时降级）
+function initCommunity() {
+  communityInitTried = true;
+  const offlineEl = document.getElementById('communityOffline');
+  const listEl = document.getElementById('communityList');
+  const fail = () => {
+    communityReady = false;
+    if (offlineEl) offlineEl.style.display = 'block';
+    if (listEl) listEl.innerHTML = '';
+  };
+  if (!navigator.onLine || typeof window.supabase === 'undefined') { fail(); return; }
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch(e) { fail(); return; }
+  communityReady = true;
+  if (offlineEl) offlineEl.style.display = 'none';
+  subscribeCommunity();
+}
+
+// 加载帖子 + 统计 + 我的点赞
+async function loadCommunityPosts(showTip) {
+  if (!communityReady) { initCommunity(); if (!communityReady) return; }
+  const id = getIdentity();
+  const [postsRes, statsRes, myLikesRes] = await Promise.all([
+    sb.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
+    sb.from('post_stats').select('*'),
+    sb.from('likes').select('post_id').eq('user_id', id.userId)
+  ]);
+  if (postsRes.error) {
+    showToast('帖子加载失败，请检查网络');
+    document.getElementById('communityOffline').style.display = 'block';
+    return;
+  }
+  communityPosts = postsRes.data || [];
+  communityStats = {};
+  (statsRes.data || []).forEach(s => { communityStats[s.post_id] = { like_count: s.like_count || 0, comment_count: s.comment_count || 0 }; });
+  communityMyLikes = {};
+  (myLikesRes.data || []).forEach(l => { communityMyLikes[l.post_id] = true; });
+  communityLoadedOnce = true;
+  document.getElementById('communityOffline').style.display = 'none';
+  renderCommunity();
+  if (showTip) showToast('已刷新');
+}
+
+// 分类筛选
+function filterCommunity(cat) {
+  communityFilter = cat;
+  document.querySelectorAll('#communityFilters .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.cfilter === cat));
+  renderCommunity();
+}
+
+function timeAgo(iso) {
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return '';
+  const diff = Math.floor((Date.now() - t) / 1000);
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + '天前';
+  const d = new Date(iso);
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+}
+
+// 渲染帖子列表
+function renderCommunity() {
+  const container = document.getElementById('communityList');
+  if (!container) return;
+  const me = getIdentity();
+  let list = communityPosts;
+  if (communityFilter !== '全部') list = list.filter(p => p.category === communityFilter);
+
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-state"><div class="emoji">💬</div><div class="text">' +
+      (communityLoadedOnce ? '这个分类下还没有帖子，来发第一条吧' : '正在加载帖子...') + '</div></div>';
+    return;
+  }
+
+  container.innerHTML = list.map(p => {
+    const st = communityStats[p.id] || { like_count: 0, comment_count: 0 };
+    const liked = communityMyLikes[p.id] ? 'liked' : '';
+    const isMine = p.user_id === me.userId;
+    const avatarBg = AVATAR_COLORS[hashStr(p.nickname || '') % AVATAR_COLORS.length];
+    const commentsHtml = expandedPostId === p.id ? renderCommentsFor(p.id) : '';
+    return `
+      <div class="post-card" data-pid="${p.id}">
+        <div class="post-head">
+          <div class="post-avatar" style="background:${avatarBg}">${escapeHtml((p.nickname || '同学').slice(0, 1))}</div>
+          <div class="post-meta-row">
+            <div class="post-nick">${escapeHtml(p.nickname || '同学')}</div>
+            <div class="post-time">${timeAgo(p.created_at)}</div>
+          </div>
+          <div class="post-cat">${escapeHtml(p.category || '闲聊')}</div>
+          ${isMine ? `<button class="post-del-btn" onclick="askDeletePost('${p.id}', event)">删除</button>` : ''}
+        </div>
+        <div class="post-content">${escapeHtml(p.content)}</div>
+        <div class="post-actions">
+          <button class="post-action-btn ${liked}" onclick="toggleLike('${p.id}', event)">❤️ <span>${st.like_count}</span></button>
+          <button class="post-action-btn" onclick="toggleComments('${p.id}', event)">💬 <span>${st.comment_count}</span></button>
+        </div>
+        ${commentsHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+// 渲染某帖评论区（含输入框）
+function renderCommentsFor(postId) {
+  const me = getIdentity();
+  const list = communityComments[postId] || [];
+  const items = list.map(c => `
+    <div class="comment-item">
+      <span class="c-nick">${escapeHtml(c.nickname)}</span>
+      <span class="c-text">${escapeHtml(c.content)}</span>
+      ${c.user_id === me.userId ? `<button class="c-del" onclick="askDeleteComment('${c.id}', '${postId}', event)">删</button>` : ''}
+    </div>
+  `).join('');
+  return `
+    <div class="comment-area">
+      ${items || '<div style="font-size:12px;color:var(--text-light);padding:4px 0;">还没有评论</div>'}
+      <div class="comment-input-row">
+        <input id="commentInput_${postId}" maxlength="300" placeholder="友善评论（300字内）"
+               value="${escapeHtml(communityCommentDraft)}" oninput="communityCommentDraft=this.value">
+        <button class="comment-send" onclick="submitComment('${postId}')">发送</button>
+      </div>
+    </div>
+  `;
+}
+
+// 点赞/取消（乐观更新，失败回滚）
+async function toggleLike(postId, ev) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (!communityReady) return;
+  const id = getIdentity();
+  if (!communityStats[postId]) communityStats[postId] = { like_count: 0, comment_count: 0 };
+  const liked = !!communityMyLikes[postId];
+  communityMyLikes[postId] = !liked;
+  communityStats[postId].like_count += liked ? -1 : 1;
+  renderCommunity();
+  let res;
+  if (liked) res = await sb.from('likes').delete().eq('post_id', postId).eq('user_id', id.userId);
+  else res = await sb.from('likes').insert({ post_id: postId, user_id: id.userId });
+  if (res.error && res.error.code !== '23505') {
+    communityMyLikes[postId] = liked;
+    communityStats[postId].like_count += liked ? 1 : -1;
+    renderCommunity();
+    showToast('操作失败，请重试');
+  }
+}
+
+// 展开/收起评论
+async function toggleComments(postId, ev) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (!communityReady) return;
+  if (expandedPostId === postId) {
+    expandedPostId = null;
+    communityCommentDraft = '';
+    renderCommunity();
+    return;
+  }
+  expandedPostId = postId;
+  communityCommentDraft = '';
+  const { data, error } = await sb.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true });
+  if (error) { showToast('评论加载失败'); return; }
+  communityComments[postId] = data || [];
+  renderCommunity();
+  setTimeout(() => {
+    const inp = document.getElementById('commentInput_' + postId);
+    if (inp) inp.focus();
+  }, 50);
+}
+
+// 发表评论
+async function submitComment(postId) {
+  if (!communityReady) return;
+  const raw = (document.getElementById('commentInput_' + postId) || {}).value || '';
+  const content = filterBadWords(raw.trim());
+  if (!content) { showToast('评论内容不能为空'); return; }
+  const id = getIdentity();
+  const { data, error } = await sb.from('comments')
+    .insert({ post_id: postId, user_id: id.userId, nickname: id.nickname, content: content })
+    .select().single();
+  if (error) { showToast('评论发布失败'); return; }
+  if (!communityComments[postId]) communityComments[postId] = [];
+  communityComments[postId].push(data);
+  if (communityStats[postId]) communityStats[postId].comment_count++;
+  communityCommentDraft = '';
+  renderCommunity();
+  showToast('评论成功');
+}
+
+// 请求删除帖子（弹确认）
+function askDeletePost(postId, ev) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  deleteTarget = { type: 'post', id: postId };
+  openModal('modalDeleteConfirm');
+}
+
+// 请求删除评论（弹确认）
+function askDeleteComment(commentId, postId, ev) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  deleteTarget = { type: 'comment', id: commentId, postId: postId };
+  openModal('modalDeleteConfirm');
+}
+
+// 确认删除
+async function confirmDeleteTarget() {
+  if (!communityReady || !deleteTarget) return;
+  const id = getIdentity();
+  closeModal('modalDeleteConfirm');
+  if (deleteTarget.type === 'post') {
+    const { error } = await sb.from('posts').delete().eq('id', deleteTarget.id).eq('user_id', id.userId);
+    if (error) { showToast('删除失败'); return; }
+    communityPosts = communityPosts.filter(p => p.id !== deleteTarget.id);
+    delete communityStats[deleteTarget.id];
+    if (expandedPostId === deleteTarget.id) expandedPostId = null;
+    showToast('帖子已删除');
+  } else {
+    const { error } = await sb.from('comments').delete().eq('id', deleteTarget.id).eq('user_id', id.userId);
+    if (error) { showToast('删除失败'); return; }
+    if (communityComments[deleteTarget.postId]) {
+      communityComments[deleteTarget.postId] = communityComments[deleteTarget.postId].filter(c => c.id !== deleteTarget.id);
+    }
+    if (communityStats[deleteTarget.postId] && communityStats[deleteTarget.postId].comment_count > 0) {
+      communityStats[deleteTarget.postId].comment_count--;
+    }
+    showToast('评论已删除');
+  }
+  renderCommunity();
+  deleteTarget = null;
+}
+
+// 发帖弹窗
+function openPostModal() {
+  if (!communityReady) { showToast('当前离线，无法发帖'); return; }
+  postCatSelected = '闲聊';
+  renderPostCatPicker();
+  document.getElementById('postContent').value = '';
+  updatePostCharCount();
+  openModal('modalPost');
+}
+
+function renderPostCatPicker() {
+  document.getElementById('postCatPicker').innerHTML = COMMUNITY_CATEGORIES.map(c =>
+    `<span class="pc-chip ${c === postCatSelected ? 'active' : ''}" onclick="postCatSelected='${c}';renderPostCatPicker()">${c}</span>`
+  ).join('');
+}
+
+function updatePostCharCount() {
+  const el = document.getElementById('postCharCount');
+  const len = document.getElementById('postContent').value.length;
+  el.textContent = len + '/500';
+}
+
+// 敏感词过滤：替换为 ***
+function filterBadWords(text) {
+  let out = text;
+  BAD_WORDS.forEach(w => { out = out.split(w).join('***'); });
+  return out;
+}
+
+// 发布帖子
+async function submitPost() {
+  if (!communityReady) return;
+  const now = Date.now();
+  if (now - lastPostTime < 30000) { showToast('发太快啦，喝口水休息一下～'); return; }
+  const raw = document.getElementById('postContent').value;
+  const content = filterBadWords(raw.trim());
+  if (!content) { showToast('帖子内容不能为空'); return; }
+  const id = getIdentity();
+  const { data, error } = await sb.from('posts')
+    .insert({ user_id: id.userId, nickname: id.nickname, content: content, category: postCatSelected })
+    .select().single();
+  if (error) { showToast('发布失败：' + (error.message || '请重试')); return; }
+  lastPostTime = now;
+  closeModal('modalPost');
+  showToast('发布成功 🎉');
+  // 实时订阅会自动收到自己发的帖；此处兜底直接插入
+  if (data && !communityPosts.some(p => p.id === data.id)) {
+    communityPosts.unshift(data);
+    communityStats[data.id] = { like_count: 0, comment_count: 0 };
+    renderCommunity();
+  }
+}
+
+// 实时订阅（他人发帖/删帖/评论/点赞自动更新）
+function subscribeCommunity() {
+  if (!communityReady || communityChannel) return;
+  communityChannel = sb.channel('community-realtime')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, payload => {
+      const p = payload.new;
+      if (p && !communityPosts.some(x => x.id === p.id)) {
+        communityPosts.unshift(p);
+        if (!communityStats[p.id]) communityStats[p.id] = { like_count: 0, comment_count: 0 };
+        renderCommunity();
+      }
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, payload => {
+      const oid = payload.old && payload.old.id;
+      if (!oid) return;
+      communityPosts = communityPosts.filter(p => p.id !== oid);
+      delete communityStats[oid];
+      if (expandedPostId === oid) expandedPostId = null;
+      renderCommunity();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
+      const c = payload.new;
+      if (!c || c.user_id === getIdentity().userId) return; // 自己的评论已在本地处理
+      if (!communityStats[c.post_id]) communityStats[c.post_id] = { like_count: 0, comment_count: 0 };
+      communityStats[c.post_id].comment_count++;
+      if (expandedPostId === c.post_id) {
+        if (!communityComments[c.post_id]) communityComments[c.post_id] = [];
+        communityComments[c.post_id].push(c);
+      }
+      renderCommunity();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, payload => {
+      const c = payload.old;
+      if (!c || !c.post_id) return;
+      if (communityComments[c.post_id]) communityComments[c.post_id] = communityComments[c.post_id].filter(x => x.id !== c.id);
+      if (communityStats[c.post_id] && communityStats[c.post_id].comment_count > 0) communityStats[c.post_id].comment_count--;
+      renderCommunity();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, payload => {
+      const l = payload.new;
+      if (!l || l.user_id === getIdentity().userId) return;
+      if (!communityStats[l.post_id]) communityStats[l.post_id] = { like_count: 0, comment_count: 0 };
+      communityStats[l.post_id].like_count++;
+      renderCommunity();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, payload => {
+      const l = payload.old;
+      if (!l || !l.post_id || l.user_id === getIdentity().userId) return;
+      if (communityStats[l.post_id] && communityStats[l.post_id].like_count > 0) communityStats[l.post_id].like_count--;
+      renderCommunity();
+    })
+    .subscribe();
+}
+
+/* ========== PWA：安装与微信引导 ========== */
+let deferredInstallPrompt = null;
+
+// Service Worker 注册（仅线上 https 部署环境生效；本地 file:// 自动跳过）
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+// 安装提示：安卓 Chrome 触发后，设置页显示「安装」按钮
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const item = document.getElementById('installItem');
+  if (item) item.style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const item = document.getElementById('installItem');
+  if (item) item.style.display = 'none';
+  showToast('安装成功，可在桌面找到本应用');
+});
+
+async function promptInstall() {
+  if (!deferredInstallPrompt) { showToast('当前浏览器不支持安装，请用安卓 Chrome 打开'); return; }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  const item = document.getElementById('installItem');
+  if (item) item.style.display = 'none';
+}
+
+// 微信内打开：显示引导浮层
+if (/MicroMessenger/i.test(navigator.userAgent)) {
+  window.addEventListener('load', () => {
+    const wg = document.getElementById('wechatGuide');
+    if (wg) wg.style.display = 'flex';
+  });
+}
+
+let appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' } }, points: 0, checkins: [] };
 let currentView = 'today';
 let currentWeekOffset = 0;
 let selectedColor = COURSE_COLORS[0];
@@ -1129,8 +1968,18 @@ function loadData() {
       appData = {
         courses: parsed.courses || [],
         reminders: parsed.reminders || [],
-        settings: parsed.settings || { semesterName: '', semesterStart: '', totalWeeks: 16 }
+        settings: parsed.settings || { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' } },
+        points: (typeof parsed.points === 'number' && !isNaN(parsed.points)) ? parsed.points : 0,
+        checkins: Array.isArray(parsed.checkins) ? parsed.checkins : []
       };
+      // 确保默认休息行存在（兼容旧数据缺失晚休条目）
+      if (!appData.settings.breakAfter) appData.settings.breakAfter = {};
+      var defaultBreaks = { 4: '午 休', 8: '晚 休' };
+      var needSave = false;
+      for (var bk in defaultBreaks) {
+        if (!appData.settings.breakAfter[bk]) { appData.settings.breakAfter[bk] = defaultBreaks[bk]; needSave = true; }
+      }
+      if (needSave) saveData();
     }
   } catch(e) { console.warn('数据加载失败', e); }
 }
@@ -1180,8 +2029,17 @@ function switchView(view) {
   document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === view));
   if (view === 'today') renderToday();
   if (view === 'schedule') renderSchedule();
-  if (view === 'reminders') renderReminders();
+  if (view === 'reminders') { renderReminders(); updateFilterArrows(); }
+  if (view === 'community') {
+    renderCommunityMe();
+    if (!communityInitTried) initCommunity();
+    if (communityReady && !communityLoadedOnce) loadCommunityPosts(false);
+    else renderCommunity();
+  }
   if (view === 'settings') renderSettings();
+  // fab 按钮随视图变化
+  const fabEl = document.getElementById('fab');
+  if (fabEl) fabEl.textContent = view === 'community' ? '✏️' : '+';
 }
 
 /* ========== 今日概览 ========== */
@@ -1212,6 +2070,7 @@ function renderToday() {
 
   renderTodayCourses(todayCourses, now);
   renderNextClass(todayCourses, now);
+  updateHeroPoints();
 
   // 今日提醒
   const todayStr = formatDate(now);
@@ -1247,6 +2106,7 @@ function renderTodayCourses(courses, now) {
     } else {
       status = 'done'; badge = '已结束';
     }
+    const cstate = getCheckinState(c, now);
     return `
       <div class="course-item-today" onclick="editCourse('${c.id}')">
         <div class="time-col">
@@ -1263,7 +2123,10 @@ function renderTodayCourses(courses, now) {
             ${c.weeks && c.weeks.length ? `<span>📅 第${weeksToText(c.weeks, appData.settings.totalWeeks || 16)}周</span>` : ''}
           </div>
         </div>
-        <div class="status-badge ${status}">${badge}</div>
+        <div class="right-col">
+          <div class="status-badge ${status}">${badge}</div>
+          <button class="checkin-btn ${cstate}" data-course-id="${c.id}" data-state="${cstate}" ${cstate !== 'active' ? 'disabled' : ''} onclick="doCheckin('${c.id}', event)">${cstate === 'done' ? '已签到 ✓' : '签到'}</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -1349,11 +2212,8 @@ function renderSchedule() {
     html += `<div class="sg-header ${isToday ? 'today' : ''}" style="grid-column:${d+1};grid-row:1;"><div class="day-name">${DAY_NAMES[d]}</div></div>`;
   }
 
-  // 计算休息行位置后的行号映射
-  // 节次1-4为上午，节次5-8为下午，节次9-12为晚上
-  // 第4节后插入午休行，第8节后插入晚休行
-  // grid行号：节次s → s+1；午休在节次4后 = 行6；晚休在节次8后 = 行11
-  var breakAfterSlot = { 4: '午 休', 8: '晚 休'};
+  // 休息行位置从 settings 读取（可拖动调整）
+  var breakAfterSlot = appData.settings.breakAfter || { 4: '午 休', 8: '晚 休' };
 
   // 课程格子（节次1-11）
   var currentWeek = getCurrentWeek() + currentWeekOffset;
@@ -1362,7 +2222,7 @@ function renderSchedule() {
     gridRow++;
     // 节次号 + 时间
     const slotTime = TIME_SLOTS[s - 1];
-    html += `<div class="sg-slot-num" style="grid-column:1;grid-row:${gridRow};">
+    html += `<div class="sg-slot-num" style="grid-column:1;grid-row:${gridRow};" data-slot="${s}" onclick="openSlotTimeEditor(${s})">
       <div class="slot-n">${s}</div>
       <div class="slot-t">${slotTime.start}</div>
       <div class="slot-t">${slotTime.end}</div>
@@ -1418,7 +2278,8 @@ function renderSchedule() {
     // 节次结束后插入休息行
     if (breakAfterSlot[s]) {
       gridRow++;
-      html += `<div class="sg-break" style="grid-row:${gridRow};">~ ${breakAfterSlot[s]} ~</div>`;
+      var breakLabel = breakAfterSlot[s];
+      html += `<div class="sg-break" style="grid-row:${gridRow};" data-after-slot="${s}" data-break-label="${breakLabel}">~ ${breakLabel} ~</div>`;
     }
   }
 
@@ -1768,7 +2629,41 @@ function toggleReminderDone(id) {
 function filterReminders(filter) {
   reminderFilter = filter;
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
+  ensureChipVisible(document.querySelector(`.filter-chip[data-filter="${filter}"]`));
   renderReminders();
+}
+
+/* ===== 筛选标签栏箭头翻动 ===== */
+function scrollFilters(dir) {
+  const row = document.getElementById('reminderFilters');
+  if (!row) return;
+  const step = Math.max(120, row.clientWidth * 0.8);
+  row.scrollBy({ left: dir * step, behavior: 'smooth' });
+}
+
+function updateFilterArrows() {
+  const row = document.getElementById('reminderFilters');
+  const left = document.getElementById('filterArrowLeft');
+  const right = document.getElementById('filterArrowRight');
+  if (!row || !left || !right) return;
+  const overflow = row.scrollWidth > row.clientWidth + 1;
+  left.classList.toggle('hidden', !overflow);
+  right.classList.toggle('hidden', !overflow);
+  if (!overflow) return;
+  left.disabled = row.scrollLeft <= 1;
+  right.disabled = row.scrollLeft >= row.scrollWidth - row.clientWidth - 1;
+}
+
+function ensureChipVisible(chip) {
+  const row = document.getElementById('reminderFilters');
+  if (!row || !chip) return;
+  const rowRect = row.getBoundingClientRect();
+  const chipRect = chip.getBoundingClientRect();
+  if (chipRect.left < rowRect.left) {
+    row.scrollBy({ left: chipRect.left - rowRect.left - 8, behavior: 'smooth' });
+  } else if (chipRect.right > rowRect.right) {
+    row.scrollBy({ left: chipRect.right - rowRect.right + 8, behavior: 'smooth' });
+  }
 }
 
 function renderReminders() {
@@ -1830,6 +2725,29 @@ function renderSettings() {
   document.getElementById('semesterName').value = appData.settings.semesterName || '';
   document.getElementById('semesterStart').value = appData.settings.semesterStart || '';
   document.getElementById('totalWeeks').value = appData.settings.totalWeeks || 16;
+  renderPointsSection();
+}
+
+// 设置页：积分系统区块渲染
+function renderPointsSection() {
+  const big = document.getElementById('pointsBig');
+  const sub = document.getElementById('pointsSub');
+  const history = document.getElementById('checkinHistory');
+  if (!big || !sub || !history) return;
+  const points = appData.points || 0;
+  const checkins = appData.checkins || [];
+  const todayStr = formatDate(new Date());
+  const todayCount = checkins.filter(k => k.date === todayStr).length;
+  big.textContent = '⭐ ' + points;
+  sub.textContent = `累计签到 ${checkins.length} 次 · 今日已签 ${todayCount} 次`;
+  if (!checkins.length) {
+    history.innerHTML = '<div style="font-size:12px;color:var(--text-light);padding:8px 0;">还没有签到记录，去今日页面的课程卡片点「签到」吧</div>';
+  } else {
+    const recent = checkins.slice(-10).reverse();
+    history.innerHTML = '<h3>最近签到记录</h3><ul>' + recent.map(k =>
+      `<li><span class="chk-name">${escapeHtml(k.courseName || '课程')}</span><span class="chk-meta">${k.date} ${k.time || ''} · +${k.points}分</span></li>`
+    ).join('') + '</ul>';
+  }
 }
 
 function saveSemesterSettings() {
@@ -1863,6 +2781,8 @@ function importData(event) {
       if (data.courses) appData.courses = data.courses;
       if (data.reminders) appData.reminders = data.reminders;
       if (data.settings) appData.settings = data.settings;
+      if (typeof data.points === 'number' && !isNaN(data.points)) appData.points = data.points;
+      if (Array.isArray(data.checkins)) appData.checkins = data.checkins;
       saveData();
       showToast('数据导入成功');
       if (currentView === 'today') renderToday();
@@ -1881,11 +2801,44 @@ function confirmClearAll() {
 }
 
 function clearAllData() {
-  appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16 } };
+  appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' } }, points: 0, checkins: [] };
   saveData();
   closeModal('modalConfirm');
   showToast('所有数据已清空');
   renderSettings();
+}
+
+/* ========== 节次时间编辑 ========== */
+function openSlotTimeEditor(slot) {
+  var t = TIME_SLOTS[slot - 1];
+  document.getElementById('slotTimeTitle').textContent = '第' + slot + '节 时间设置';
+  document.getElementById('slotTimeStart').value = t.start;
+  document.getElementById('slotTimeEnd').value = t.end;
+  document.getElementById('slotTimeEditSlot').value = slot;
+  openModal('modalSlotTime');
+}
+
+function saveSlotTime() {
+  var slot = parseInt(document.getElementById('slotTimeEditSlot').value);
+  var start = document.getElementById('slotTimeStart').value;
+  var end = document.getElementById('slotTimeEnd').value;
+  if (!start || !end) { showToast('请输入开始和结束时间'); return; }
+  TIME_SLOTS[slot - 1].start = start;
+  TIME_SLOTS[slot - 1].end = end;
+  // 刷新节次下拉框时间显示
+  var startSel = document.getElementById('courseStartSlot');
+  var endSel = document.getElementById('courseEndSlot');
+  startSel.innerHTML = '';
+  endSel.innerHTML = '';
+  for (var i = 1; i <= TOTAL_SLOTS; i++) {
+    var tt = TIME_SLOTS[i - 1];
+    startSel.innerHTML += '<option value="' + i + '">第' + i + '节 ' + tt.start + '</option>';
+    endSel.innerHTML += '<option value="' + i + '">第' + i + '节 ' + tt.end + '</option>';
+  }
+  closeModal('modalSlotTime');
+  showToast('第' + slot + '节时间已更新');
+  if (currentView === 'schedule') renderSchedule();
+  if (currentView === 'today') renderToday();
 }
 
 /* ========== FAB ========== */
@@ -1894,6 +2847,8 @@ function onFabClick() {
     openAddCourse(getTodayDayOfWeek(), 1);
   } else if (currentView === 'reminders') {
     openAddReminder();
+  } else if (currentView === 'community') {
+    openPostModal();
   } else if (currentView === 'today') {
     openAddReminder();
   } else {
@@ -1989,39 +2944,8 @@ async function runOcr(imageDataUrl) {
           progressBar.style.width = (25 + m.progress * 55) + '%';
           loadingText.textContent = '正在识别文字（第 1 遍）... ' + Math.round(m.progress * 100) + '%';
         }
-      }
-    });
-
-    await worker.setParameters({
-      tessedit_pageseg_mode: PSM_SPARSE,
-      preserve_interword_spaces: '1',
-    });
-
-    // 第三步：第 1 遍识别（SPARSE_TEXT 模式）
-    loadingText.textContent = '正在识别图片内容（第 1 遍：稀疏文本模式）...';
-    progressBar.style.width = '25%';
-    const { data: data1 } = await worker.recognize(processedImage);
-
-    let finalData = data1;
-
-    // 第四步：如果第 1 遍结果太少，用 SINGLE_BLOCK 模式重试
-    const wordCount1 = (data1.words || []).filter(w => w.text && w.text.trim()).length;
-    if (wordCount1 < 8) {
-      loadingText.textContent = '正在优化识别（第 2 遍：整块文本模式）...';
-      progressBar.style.width = '82%';
-
-      await worker.setParameters({
-        tessedit_pageseg_mode: PSM_BLOCK,
-        preserve_interword_spaces: '1',
-      });
-
-      const { data: data2 } = await worker.recognize(processedImage);
-      const wordCount2 = (data2.words || []).filter(w => w.text && w.text.trim()).length;
-
-      if (wordCount2 > wordCount1) {
-        finalData = data2;
-      }
     }
+  });
 
     await worker.terminate();
 
@@ -2034,9 +2958,10 @@ async function runOcr(imageDataUrl) {
 
     // 第六步：只识别课程位置（星期+节次），不解析课程内容
     // 用户后续通过单课截图识别填写具体内容
-    ocrCourses = parseScheduleSpatialPositions(finalData, cleanedText);
+    // 先尝试文本解析（对分行标注的截图更准确），再尝试空间解析
+    ocrCourses = parseScheduleText(cleanedText);
     if (ocrCourses.length === 0) {
-      ocrCourses = parseScheduleText(cleanedText);
+      ocrCourses = parseScheduleSpatialPositions(finalData, cleanedText);
     }
 
     progressBar.style.width = '100%';
@@ -2264,8 +3189,9 @@ function parseScheduleText(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1);
   const allText = lines.join('\n');
 
-  // 尝试两种解析策略
-  let courses = parseListFormat(lines, allText);
+  // 尝试三种解析策略
+  let courses = parseSeparateHeaderFormat(lines, allText);
+  if (courses.length === 0) courses = parseListFormat(lines, allText);
   if (courses.length === 0) {
     courses = parseGridFormat(lines, allText);
   }
@@ -2276,6 +3202,121 @@ function parseScheduleText(text) {
     c.color = COURSE_COLORS[i % COURSE_COLORS.length];
     c._incomplete = !c.name || !c.day || !c.startSlot || !c.endSlot;
   });
+
+  return courses;
+}
+
+// 解析"分行标注"格式课表（星期和节次在不同行，如截图中的"周一"\\n"第1节课"）
+function parseSeparateHeaderFormat(lines, allText) {
+  var courses = [];
+
+  // 先从全局文本中提取所有星期信息（取第一个匹配的星期作为该图的星期）
+  var globalDay = null;
+  for (var i = 0; i < lines.length; i++) {
+    var dayMatch = lines[i].match(/星期([一二三四五六日天])/) || lines[i].match(/周([一二三四五六日天])/);
+    if (dayMatch) {
+      var dMap = { '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '日':7, '天':7 };
+      globalDay = dMap[dayMatch[1]];
+      break;
+    }
+  }
+  if (globalDay === null) return [];
+
+  // 找所有"第X节课"行，确定节次范围
+  var slotLines = []; // {slot, lineIndex, text}
+  for (var i = 0; i < lines.length; i++) {
+    var m = lines[i].match(/第(\d{1,2})节/);
+    if (m) {
+      slotLines.push({ slot: parseInt(m[1]), lineIndex: i, text: lines[i] });
+    }
+  }
+  if (slotLines.length === 0) return [];
+
+  // 在"第X节课"行之间，如果有课程内容文字（非空白、非纯节次标注），则该范围有课
+  // 策略：遍历相邻节次行之间的内容，如果有实质性文字内容，则认为该节次有课
+  for (var si = 0; si < slotLines.length - 1; si++) {
+    var startSlotLine = slotLines[si];
+    var nextSlotLine = slotLines[si + 1];
+    // 收集两个节次行之间的所有行内容
+    var betweenText = '';
+    for (var j = startSlotLine.lineIndex + 1; j < nextSlotLine.lineIndex; j++) {
+      betweenText += lines[j] + ' ';
+    }
+    betweenText = betweenText.trim();
+
+    // 如果两个节次行之间有实质内容（课程信息），说明该节次有课
+    if (betweenText.length > 3) {
+      // 找到连续有课的节次范围
+      var startSlot = startSlotLine.slot;
+      var endSlot = startSlot;
+      // 检查后续节次是否也在此课程范围内（连续的节次行之间都有内容 = 跨节课程）
+      for (var k = si + 1; k < slotLines.length - 1; k++) {
+        var nextBetween = '';
+        for (var j2 = slotLines[k].lineIndex + 1; j2 < slotLines[k + 1].lineIndex; j2++) {
+          nextBetween += lines[j2] + ' ';
+        }
+        nextBetween = nextBetween.trim();
+        if (nextBetween.length > 3) {
+          endSlot = slotLines[k + 1].slot; // 课程延伸到下一个节次
+        } else {
+          break;
+        }
+      }
+
+      // 提取课程信息
+      var course = { day: globalDay, startSlot: startSlot, endSlot: endSlot };
+      // 从 betweenText 中提取老师名+工号
+      var teacherRegex = /([\u4e00-\u9fa5]{2,4})\((\d{3,6})\)/g;
+      var tm;
+      var teachers = [];
+      while ((tm = teacherRegex.exec(betweenText)) !== null) {
+        teachers.push(tm[1]);
+      }
+      if (teachers.length > 0) {
+        course.teacher = teachers.join('、');
+        betweenText = betweenText.replace(/[\u4e00-\u9fa5]{2,4}\(\d{3,6}\)[、,，]?/g, '');
+      }
+      // 提取课程代码
+      var codeMatch = betweenText.match(/\(?([A-Z]{2,5}\d{3,}[A-Z0-9]*)\)?/);
+      if (codeMatch) betweenText = betweenText.replace(codeMatch[0], '');
+      // 提取周次
+      var weekMatch = betweenText.match(/\[[\d,\-～~到至\s]+\]/);
+      if (weekMatch) {
+        course.weeks = generateWeeksFromRange(weekMatch[0].replace(/[\[\]]/g, ''), 16);
+        betweenText = betweenText.replace(weekMatch[0], '');
+      }
+      // 提取地点
+      var locPatterns = [
+        /线上课堂/, /线上[课]*/, /物理馆[\d\-楼]*/,
+        /爱校路[\u4e00-\u9fa5\d（()）]+/, /[一二三]教\d{2,4}/,
+        /教学楼[A-Z]?\d{2,4}/, /[东南西北]\d{2,4}/, /[东南西北]楼\d{0,4}/,
+        /教\d{2,4}/
+      ];
+      for (var pi = 0; pi < locPatterns.length; pi++) {
+        var lm = betweenText.match(locPatterns[pi]);
+        if (lm && lm[0] && lm[0].length >= 2) {
+          course.location = lm[0];
+          betweenText = betweenText.replace(locPatterns[pi], '');
+          break;
+        }
+      }
+      // 清理残余
+      betweenText = betweenText.replace(/^\d+/, '').replace(/^[、,，:：]+/, '').replace(/\(\)/g, '').trim();
+      if (betweenText.length >= 2 && betweenText.length <= 50) {
+        course.name = betweenText;
+      }
+
+      if (course.name || course.teacher || course.location) {
+        course.id = uid();
+        course.color = COURSE_COLORS[courses.length % COURSE_COLORS.length];
+        course._incomplete = !course.name || !course.day || !course.startSlot || !course.endSlot;
+        courses.push(course);
+      }
+
+      // 跳过已处理的节次
+      si = si + (endSlot - startSlot);
+    }
+  }
 
   return courses;
 }
@@ -2531,7 +3572,7 @@ function parseScheduleSpatial(data, rawText) {
   // 第一步：在图片顶部 15% 区域找星期表头
   var headerBottom = minY + height * 0.15;
   var dayHeaders = findDayHeaders(words, headerBottom);
-  if (dayHeaders.length < 2) return []; // 找不到足够的列标头，不是网格格式
+  if (dayHeaders.length < 1) return []; // 允许单列课表（至少1个星期表头）
 
   dayHeaders.sort(function(a, b) { return a.xCenter - b.xCenter; });
 
@@ -2543,7 +3584,7 @@ function parseScheduleSpatial(data, rawText) {
     colBounds.push({ day: dayHeaders[i].day, x0: xLeft, x1: xRight });
   }
 
-  // 第三步：在最左侧 12% 区域找节次数字，定义行边界
+  // 第三步：在最左侧列找节次数字，定义行边界
   var leftColRight = minX + width * 0.12;
   var rowBounds = findRowBoundaries(words, leftColRight, headerBottom, maxY);
 
@@ -2557,14 +3598,15 @@ function parseScheduleSpatial(data, rawText) {
   // 降低聚类阈值：从 rowHeight*0.35 降到 rowHeight*0.2，更敏感地检测同一格子内的多个课程方块
   var gapThreshold = Math.max(rowHeight * 0.2, height * 0.015);
 
-  // 第四步：过滤掉表头行和左侧节次列的文字
+  // 第四步：过滤掉表头行、左侧节次列的文字、以及课列内的节次标记文字（如"第2节课"）
   var cellWords = words.filter(function(w) {
     var cy = (w.bbox.y0 + w.bbox.y1) / 2;
     var cx = (w.bbox.x0 + w.bbox.x1) / 2;
     if (cy < headerBottom) return false; // 排除表头
     if (rowBounds.length > 0 && cx < leftColRight) return false; // 排除左侧列
-    // 排除悬浮提示框中常见的干扰文字
     if (/排课信息|悬浮|提示/.test(w.text)) return false;
+    // 排除课列内的节次标记文字（如"第1节课""第2节课"）
+    if (/^第\d{1,2}节课?$/.test(w.text.trim())) return false;
     return true;
   });
 
@@ -2681,7 +3723,7 @@ function parseScheduleSpatialPositions(data, rawText) {
   // 找星期表头
   var headerBottom = minY + height * 0.15;
   var dayHeaders = findDayHeaders(words, headerBottom);
-  if (dayHeaders.length < 2) return [];
+  if (dayHeaders.length < 1) return []; // 允许单列课表
 
   dayHeaders.sort(function(a, b) { return a.xCenter - b.xCenter; });
 
@@ -2712,6 +3754,8 @@ function parseScheduleSpatialPositions(data, rawText) {
     if (cy < headerBottom) return false;
     if (rowBounds.length > 0 && cx < leftColRight) return false;
     if (/排课信息|悬浮|提示/.test(w.text)) return false;
+    // 排除课列内的节次标记文字（如"第1节课""第2节课"）
+    if (/^第\d{1,2}节课?$/.test(w.text.trim())) return false;
     return true;
   });
 
@@ -2879,20 +3923,35 @@ function findDayHeaders(words, headerBottom) {
 }
 
 // 在最左侧列找节次数字，定义行边界
+// 支持纯数字（如 "1"）和 "第X节课" 格式
 function findRowBoundaries(words, leftColRight, headerBottom, maxY) {
   var numWords = words.filter(function(w) {
     var cx = (w.bbox.x0 + w.bbox.x1) / 2;
     var cy = (w.bbox.y0 + w.bbox.y1) / 2;
-    return cx < leftColRight && cy > headerBottom && /^\d{1,2}$/.test(w.text.trim());
+    if (!(cx < leftColRight && cy > headerBottom)) return false;
+    var t = w.text.trim();
+    // 纯数字
+    if (/^\d{1,2}$/.test(t)) return true;
+    // 第X节课
+    var m = t.match(/第(\d{1,2})节/);
+    if (m) return true;
+    return false;
   });
-  if (numWords.length < 3) return [];
+  if (numWords.length < 2) return []; // 至少2个节次标识
 
   numWords.sort(function(a, b) { return a.bbox.y0 - b.bbox.y0; });
 
   var rowBounds = [];
   for (var i = 0; i < numWords.length; i++) {
     var w = numWords[i];
-    var slot = parseInt(w.text.trim());
+    var t = w.text.trim();
+    var slot;
+    if (/^\d{1,2}$/.test(t)) {
+      slot = parseInt(t);
+    } else {
+      var m = t.match(/第(\d{1,2})节/);
+      slot = m ? parseInt(m[1]) : 0;
+    }
     if (slot < 1 || slot > TOTAL_SLOTS) continue;
 
     var yCenter = (w.bbox.y0 + w.bbox.y1) / 2;
@@ -3384,7 +4443,7 @@ async function runSingleCourseOcr(imageDataUrl) {
 
 // 拖拽状态
 var dragState = {
-  mode: null,        // 'move' | 'resize-top' | 'resize-bottom' | null
+  mode: null,        // 'move' | 'resize-top' | 'resize-bottom' | 'break-move' | null
   courseId: null,
   startSlot: 0,
   endSlot: 0,
@@ -3395,11 +4454,13 @@ var dragState = {
   startX: 0,
   rowHeight: 0,
   gridRect: null,
-  moved: false,     // 区分单击和拖拽
-  pressTimer: null, // 长按计时器
+  moved: false,
+  pressTimer: null,
   longPressed: false,
-  floatEl: null,    // 跟随鼠标的浮动元素
-  courseEl: null,   // 原始课程方块引用
+  floatEl: null,
+  courseEl: null,
+  breakLabel: null,
+  breakAfterSlot: 0,
 };
 
 // 每次 renderSchedule 后重新绑定单元格事件
@@ -3531,6 +4592,33 @@ function bindScheduleInteractions() {
       });
     }
   });
+
+  // 休息行：长按拖拽移动位置
+  grid.querySelectorAll('.sg-break').forEach(function(breakEl) {
+    var afterSlot = parseInt(breakEl.dataset.afterSlot);
+    var breakLabel = breakEl.dataset.breakLabel;
+
+    breakEl.addEventListener('mousedown', function(e) {
+      dragState.moved = false;
+      dragState.longPressed = false;
+      dragState.startY = e.clientY;
+      dragState.startX = e.clientX;
+
+      var gridEl = document.getElementById('scheduleGrid');
+      var slotCell = gridEl.querySelector('.sg-slot-num');
+      dragState.rowHeight = slotCell ? slotCell.getBoundingClientRect().height + 2 : 50;
+
+      dragState.pressTimer = setTimeout(function() {
+        dragState.longPressed = true;
+        dragState.mode = 'break-move';
+        dragState.breakLabel = breakLabel;
+        dragState.breakAfterSlot = afterSlot;
+        breakEl.classList.add('dragging');
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+      }, 200);
+    });
+  });
 }
 
 // 全局 mousemove / mouseup 事件（只绑定一次）
@@ -3556,6 +4644,14 @@ function bindGlobalScheduleEvents() {
         if (targetCell.classList.contains('has-course')) {
           targetCell.classList.add('drag-target-has-course');
         }
+      }
+    } else if (dragState.mode === 'break-move' && dragState.longPressed) {
+      // 休息行拖拽：高亮目标节次行
+      clearBreakDropTargets();
+      var targetSlot = getSlotRowAtPoint(e.clientY);
+      if (targetSlot && targetSlot !== dragState.breakAfterSlot) {
+        var targetEl = document.querySelector('.sg-slot-num[data-slot="' + targetSlot + '"]');
+        if (targetEl) targetEl.classList.add('drop-target');
       }
     } else if (dragState.mode === 'resize-top') {
       // 顶部拖拽：改变 startSlot
@@ -3613,24 +4709,33 @@ function bindGlobalScheduleEvents() {
           }
         }
       }
-      // 移除浮层
       if (dragState.floatEl) { dragState.floatEl.remove(); dragState.floatEl = null; }
-      // 立即重新渲染课表
       if (movedOk) {
         renderSchedule();
-        // 播放放置特效
-        setTimeout(function() {
-          playDropEffect(dropDay, dropSlot);
-        }, 10);
+        setTimeout(function() { playDropEffect(dropDay, dropSlot); }, 10);
         showToast('课程已移动到 ' + DAY_NAMES[dropDay] + ' 第' + dropSlot + '节');
       }
+    } else if (dragState.mode === 'break-move' && dragState.longPressed) {
+      // 休息行拖拽结束：移动到目标节次后
+      var targetSlot = getSlotRowAtPoint(e.clientY);
+      if (targetSlot && targetSlot !== dragState.breakAfterSlot) {
+        if (!appData.settings.breakAfter) appData.settings.breakAfter = {};
+        // 删除原位置
+        delete appData.settings.breakAfter[dragState.breakAfterSlot];
+        // 插入新位置（确保不和其他休息行重叠）
+        appData.settings.breakAfter[targetSlot] = dragState.breakLabel;
+        saveData();
+        renderSchedule();
+        showToast(dragState.breakLabel + '已移动到第' + targetSlot + '节后');
+      }
     } else if (!dragState.moved && !dragState.longPressed && dragState.courseId && dragState.mode !== 'resize-top' && dragState.mode !== 'resize-bottom') {
-      // 纯单击逻辑现在由 click 事件处理，这里不做 editCourse
+      // 纯单击逻辑现在由 click 事件处理
     }
 
     // 重置状态
     clearDragTargets();
-    document.querySelectorAll('.sg-course.dragging, .sg-course.resizing, .sg-course.dragging-pulse').forEach(function(el) {
+    clearBreakDropTargets();
+    document.querySelectorAll('.sg-course.dragging, .sg-course.resizing, .sg-course.dragging-pulse, .sg-break.dragging').forEach(function(el) {
       el.classList.remove('dragging');
       el.classList.remove('resizing');
       el.classList.remove('dragging-pulse');
@@ -3787,6 +4892,29 @@ function clearDragTargets() {
   });
 }
 
+// 清除休息行拖拽高亮
+function clearBreakDropTargets() {
+  document.querySelectorAll('.sg-slot-num.drop-target').forEach(function(el) {
+    el.classList.remove('drop-target');
+  });
+}
+
+// 根据 y 坐标找到最近的节次行
+function getSlotRowAtPoint(clientY) {
+  var slots = document.querySelectorAll('.sg-slot-num[data-slot]');
+  var closest = null, minDist = Infinity;
+  for (var i = 0; i < slots.length; i++) {
+    var rect = slots[i].getBoundingClientRect();
+    var cy = (rect.top + rect.bottom) / 2;
+    var dist = Math.abs(clientY - cy);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = parseInt(slots[i].dataset.slot);
+    }
+  }
+  return closest;
+}
+
 // 创建跟随鼠标的浮动课程块
 function createFloatEl(courseEl) {
   var floatEl = document.createElement('div');
@@ -3842,10 +4970,26 @@ function init() {
   setupCoursePasteZone();
   bindGlobalScheduleEvents();
 
+  // 筛选标签栏箭头状态
+  const filtersRow = document.getElementById('reminderFilters');
+  if (filtersRow) {
+    filtersRow.addEventListener('scroll', updateFilterArrows, { passive: true });
+    window.addEventListener('resize', updateFilterArrows);
+    updateFilterArrows();
+  }
+
   // 每分钟刷新今日页面（倒计时）
   setInterval(() => {
     if (currentView === 'today') renderToday();
   }, 60000);
+
+  // 每 20 秒轻量刷新签到按钮状态（±5分钟窗口跨越时不重建列表）
+  setInterval(() => {
+    if (currentView === 'today') updateCheckinButtons();
+  }, 20000);
+
+  // 帖子广场：首次预初始化（CDN 已加载时建立连接与实时订阅）
+  initCommunity();
 }
 
 init();
