@@ -1406,8 +1406,7 @@ ul { list-style: none; }
   </div>
 </div>
 
-<!-- Supabase 客户端（帖子广场云后端，匿名只读密钥，可公开暴露） -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase 云端通过原生 fetch+WebSocket 直连，无需任何第三方库/CDN -->
 
 <script>
 /* ========== 数据模型 & 存储 ========== */
@@ -1518,7 +1517,8 @@ const NICK_NOUN = ['牛奶糖', '小熊饼', '苏打饼', '糯米糍', '布丁�
 const AVATAR_COLORS = ['#B8DCF5', '#C3E6B7', '#F8CDBE', '#FAE3A8', '#D9CBEA', '#BFE5E0', '#F5CFE4'];
 // 基础敏感词表（用户可自行增删）
 const BAD_WORDS = ['加微信', '兼职刷单', '博彩', '赌博', '裸聊', '代考包过', '小额贷款'];
-let sb = null;                     // Supabase 客户端
+let communityChannel = null;        // 实时订阅 WebSocket
+let communityPolling = null;       // 轮询兑底定时器
 let communityReady = false;        // 云端是否可用
 let communityFilter = '全部';      // 当前分类筛选
 let communityPosts = [];           // 帖子缓存
@@ -1529,9 +1529,8 @@ let expandedPostId = null;         // 当前展开评论的帖子
 let communityCommentDraft = '';    // 评论输入草稿（防止重渲染丢失）
 let deleteTarget = null;           // 待删除目标 {type, id, postId}
 let postCatSelected = '闲聊';       // 发帖弹窗选中分类
-let communityChannel = null;        // 实时订阅通道
-let communityLoadedOnce = false;
 let communityInitTried = false;
+let communityLoadedOnce = false;
 let lastPostTime = 0;              // 发帖限流
 
 // 获取/生成本地匿名身份（userId 稳定不变，昵称可换）
@@ -1569,37 +1568,64 @@ function hashStr(s) {
   return h;
 }
 
-// 初始化云连接（离线/CDN失败时降级）
+// Supabase REST 封装（原生 fetch，零 CDN 依赖；status=0 表示网络层失败）
+async function sbRest(path, method, body, prefer) {
+  const headers = {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Accept': 'application/json'
+  };
+  if (body) headers['Content-Type'] = 'application/json';
+  if (prefer) headers['Prefer'] = prefer;
+  let res;
+  try {
+    res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+      method: method || 'GET',
+      headers: headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+  } catch (e) { return { ok: false, status: 0, data: null, error: '网络连接失败' }; }
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  const ok = res.status >= 200 && res.status < 300;
+  return { ok: ok, status: res.status, data: data, error: ok ? null : ((data && (data.message || data.hint)) || ('HTTP ' + res.status)) };
+}
+
+// 初始化云连接（直接探测 Supabase REST，不依赖任何外部库）
 function initCommunity() {
   communityInitTried = true;
+  initCommunityAsync();
+}
+
+async function initCommunityAsync() {
   const offlineEl = document.getElementById('communityOffline');
-  const listEl = document.getElementById('communityList');
   const fail = () => {
     communityReady = false;
     if (offlineEl) offlineEl.style.display = 'block';
-    if (listEl) listEl.innerHTML = '';
   };
-  if (!navigator.onLine || typeof window.supabase === 'undefined') { fail(); return; }
-  try {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch(e) { fail(); return; }
+  if (!navigator.onLine) { fail(); return; }
+  const probe = await sbRest('posts?select=id&limit=1');
+  if (probe.status === 0) { fail(); return; } // 完全连不上才离线；服务器任何响应（含权限错误）都算云可达
   communityReady = true;
   if (offlineEl) offlineEl.style.display = 'none';
   subscribeCommunity();
+  if (!communityLoadedOnce) loadCommunityPosts(false); // 探测成功后自动加载帖子
 }
 
-// 加载帖子 + 统计 + 我的点赞
-async function loadCommunityPosts(showTip) {
-  if (!communityReady) { initCommunity(); if (!communityReady) return; }
+// 加载帖子 + 统计 + 我的点赞（silent=true 时静默失败，供轮询用）
+async function loadCommunityPosts(showTip, silent) {
+  if (!communityReady) { initCommunity(); return; }
   const id = getIdentity();
   const [postsRes, statsRes, myLikesRes] = await Promise.all([
-    sb.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
-    sb.from('post_stats').select('*'),
-    sb.from('likes').select('post_id').eq('user_id', id.userId)
+    sbRest('posts?select=*&order=created_at.desc&limit=50'),
+    sbRest('post_stats'),
+    sbRest('likes?select=post_id&user_id=eq.' + encodeURIComponent(id.userId))
   ]);
-  if (postsRes.error) {
-    showToast('帖子加载失败，请检查网络');
-    document.getElementById('communityOffline').style.display = 'block';
+  if (postsRes.status === 0 || !postsRes.ok) {
+    if (!silent) {
+      showToast('帖子加载失败，请检查网络');
+      document.getElementById('communityOffline').style.display = 'block';
+    }
     return;
   }
   communityPosts = postsRes.data || [];
@@ -1708,9 +1734,9 @@ async function toggleLike(postId, ev) {
   communityStats[postId].like_count += liked ? -1 : 1;
   renderCommunity();
   let res;
-  if (liked) res = await sb.from('likes').delete().eq('post_id', postId).eq('user_id', id.userId);
-  else res = await sb.from('likes').insert({ post_id: postId, user_id: id.userId });
-  if (res.error && res.error.code !== '23505') {
+  if (liked) res = await sbRest('likes?post_id=eq.' + encodeURIComponent(postId) + '&user_id=eq.' + encodeURIComponent(id.userId), 'DELETE');
+  else res = await sbRest('likes', 'POST', { post_id: postId, user_id: id.userId });
+  if (!res.ok && !(res.data && res.data.code === '23505')) {
     communityMyLikes[postId] = liked;
     communityStats[postId].like_count += liked ? 1 : -1;
     renderCommunity();
@@ -1730,9 +1756,9 @@ async function toggleComments(postId, ev) {
   }
   expandedPostId = postId;
   communityCommentDraft = '';
-  const { data, error } = await sb.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true });
-  if (error) { showToast('评论加载失败'); return; }
-  communityComments[postId] = data || [];
+  const res = await sbRest('comments?select=*&post_id=eq.' + encodeURIComponent(postId) + '&order=created_at.asc');
+  if (!res.ok) { showToast('评论加载失败'); return; }
+  communityComments[postId] = res.data || [];
   renderCommunity();
   setTimeout(() => {
     const inp = document.getElementById('commentInput_' + postId);
@@ -1747,10 +1773,9 @@ async function submitComment(postId) {
   const content = filterBadWords(raw.trim());
   if (!content) { showToast('评论内容不能为空'); return; }
   const id = getIdentity();
-  const { data, error } = await sb.from('comments')
-    .insert({ post_id: postId, user_id: id.userId, nickname: id.nickname, content: content })
-    .select().single();
-  if (error) { showToast('评论发布失败'); return; }
+  const res = await sbRest('comments', 'POST', { post_id: postId, user_id: id.userId, nickname: id.nickname, content: content }, 'return=representation');
+  if (!res.ok || !res.data || !res.data.length) { showToast('评论发布失败'); return; }
+  const data = res.data[0];
   if (!communityComments[postId]) communityComments[postId] = [];
   communityComments[postId].push(data);
   if (communityStats[postId]) communityStats[postId].comment_count++;
@@ -1779,15 +1804,15 @@ async function confirmDeleteTarget() {
   const id = getIdentity();
   closeModal('modalDeleteConfirm');
   if (deleteTarget.type === 'post') {
-    const { error } = await sb.from('posts').delete().eq('id', deleteTarget.id).eq('user_id', id.userId);
-    if (error) { showToast('删除失败'); return; }
+    const res = await sbRest('posts?id=eq.' + encodeURIComponent(deleteTarget.id) + '&user_id=eq.' + encodeURIComponent(id.userId), 'DELETE');
+    if (!res.ok) { showToast('删除失败'); return; }
     communityPosts = communityPosts.filter(p => p.id !== deleteTarget.id);
     delete communityStats[deleteTarget.id];
     if (expandedPostId === deleteTarget.id) expandedPostId = null;
     showToast('帖子已删除');
   } else {
-    const { error } = await sb.from('comments').delete().eq('id', deleteTarget.id).eq('user_id', id.userId);
-    if (error) { showToast('删除失败'); return; }
+    const res = await sbRest('comments?id=eq.' + encodeURIComponent(deleteTarget.id) + '&user_id=eq.' + encodeURIComponent(id.userId), 'DELETE');
+    if (!res.ok) { showToast('删除失败'); return; }
     if (communityComments[deleteTarget.postId]) {
       communityComments[deleteTarget.postId] = communityComments[deleteTarget.postId].filter(c => c.id !== deleteTarget.id);
     }
@@ -1838,10 +1863,9 @@ async function submitPost() {
   const content = filterBadWords(raw.trim());
   if (!content) { showToast('帖子内容不能为空'); return; }
   const id = getIdentity();
-  const { data, error } = await sb.from('posts')
-    .insert({ user_id: id.userId, nickname: id.nickname, content: content, category: postCatSelected })
-    .select().single();
-  if (error) { showToast('发布失败：' + (error.message || '请重试')); return; }
+  const res = await sbRest('posts', 'POST', { user_id: id.userId, nickname: id.nickname, content: content, category: postCatSelected }, 'return=representation');
+  if (!res.ok || !res.data || !res.data.length) { showToast('发布失败：' + (res.error || '请重试')); return; }
+  const data = res.data[0];
   lastPostTime = now;
   closeModal('modalPost');
   showToast('发布成功 🎉');
@@ -1853,29 +1877,76 @@ async function submitPost() {
   }
 }
 
-// 实时订阅（他人发帖/删帖/评论/点赞自动更新）
+// 实时订阅（原生 WebSocket 直连 Supabase Realtime，零库依赖；失败自动降级为 30 秒轮询）
+// 协议要点（实验验证）：topic 必须为 realtime:public:posts 格式；消息对象带 join_ref；
+// config.postgres_changes 每项必须带 id 字段；推送消息为 payload.data
+const RT_EVENTS = [
+  { id: 1, event: 'INSERT', schema: 'public', table: 'posts' },
+  { id: 2, event: 'DELETE', schema: 'public', table: 'posts' },
+  { id: 3, event: 'INSERT', schema: 'public', table: 'comments' },
+  { id: 4, event: 'DELETE', schema: 'public', table: 'comments' },
+  { id: 5, event: 'INSERT', schema: 'public', table: 'likes' },
+  { id: 6, event: 'DELETE', schema: 'public', table: 'likes' }
+];
+
 function subscribeCommunity() {
   if (!communityReady || communityChannel) return;
-  communityChannel = sb.channel('community-realtime')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, payload => {
-      const p = payload.new;
+  let ws;
+  try {
+    ws = new WebSocket(SUPABASE_URL.replace(/^http/, 'ws') +
+      '/realtime/v1/websocket?apikey=' + encodeURIComponent(SUPABASE_ANON_KEY) + '&vsn=1.0.0');
+  } catch (e) { startCommunityPolling(); return; }
+  communityChannel = { ws: ws, heartbeat: null, opened: false };
+  ws.onopen = () => {
+    communityChannel.opened = true;
+    ws.send(JSON.stringify({
+      topic: 'realtime:public:posts', event: 'phx_join', ref: '1', join_ref: '1',
+      payload: { config: { broadcast: { self: false }, presence: { key: '' }, postgres_changes: RT_EVENTS } }
+    }));
+    communityChannel.heartbeat = setInterval(() => {
+      try { ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: '' })); } catch (e) {}
+    }, 30000);
+  };
+  ws.onmessage = e => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch (err) { return; }
+    if (msg.event === 'postgres_changes' && msg.payload && msg.payload.data) {
+      handleRealtimeChange(msg.payload.data);
+    }
+  };
+  ws.onclose = () => {
+    if (communityChannel) {
+      if (communityChannel.heartbeat) clearInterval(communityChannel.heartbeat);
+      communityChannel = null;
+    }
+    startCommunityPolling(); // 断线后转轮询兜底，页面刷新时会重试实时
+  };
+  ws.onerror = () => {};
+}
+
+// 处理实时变更（与旧 supabase-js 回调逻辑一致）
+function handleRealtimeChange(d) {
+  const me = getIdentity();
+  if (d.table === 'posts') {
+    if (d.type === 'INSERT') {
+      const p = d.record;
       if (p && !communityPosts.some(x => x.id === p.id)) {
         communityPosts.unshift(p);
         if (!communityStats[p.id]) communityStats[p.id] = { like_count: 0, comment_count: 0 };
         renderCommunity();
       }
-    })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, payload => {
-      const oid = payload.old && payload.old.id;
+    } else if (d.type === 'DELETE') {
+      const oid = d.old_record && d.old_record.id;
       if (!oid) return;
       communityPosts = communityPosts.filter(p => p.id !== oid);
       delete communityStats[oid];
       if (expandedPostId === oid) expandedPostId = null;
       renderCommunity();
-    })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
-      const c = payload.new;
-      if (!c || c.user_id === getIdentity().userId) return; // 自己的评论已在本地处理
+    }
+  } else if (d.table === 'comments') {
+    if (d.type === 'INSERT') {
+      const c = d.record;
+      if (!c || c.user_id === me.userId) return; // 自己的评论已在本地处理
       if (!communityStats[c.post_id]) communityStats[c.post_id] = { like_count: 0, comment_count: 0 };
       communityStats[c.post_id].comment_count++;
       if (expandedPostId === c.post_id) {
@@ -1883,28 +1954,35 @@ function subscribeCommunity() {
         communityComments[c.post_id].push(c);
       }
       renderCommunity();
-    })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, payload => {
-      const c = payload.old;
+    } else if (d.type === 'DELETE') {
+      const c = d.old_record;
       if (!c || !c.post_id) return;
       if (communityComments[c.post_id]) communityComments[c.post_id] = communityComments[c.post_id].filter(x => x.id !== c.id);
       if (communityStats[c.post_id] && communityStats[c.post_id].comment_count > 0) communityStats[c.post_id].comment_count--;
       renderCommunity();
-    })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, payload => {
-      const l = payload.new;
-      if (!l || l.user_id === getIdentity().userId) return;
+    }
+  } else if (d.table === 'likes') {
+    if (d.type === 'INSERT') {
+      const l = d.record;
+      if (!l || l.user_id === me.userId) return;
       if (!communityStats[l.post_id]) communityStats[l.post_id] = { like_count: 0, comment_count: 0 };
       communityStats[l.post_id].like_count++;
       renderCommunity();
-    })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, payload => {
-      const l = payload.old;
-      if (!l || !l.post_id || l.user_id === getIdentity().userId) return;
+    } else if (d.type === 'DELETE') {
+      const l = d.old_record;
+      if (!l || !l.post_id || l.user_id === me.userId) return;
       if (communityStats[l.post_id] && communityStats[l.post_id].like_count > 0) communityStats[l.post_id].like_count--;
       renderCommunity();
-    })
-    .subscribe();
+    }
+  }
+}
+
+// 轮询兜底（实时连接不可用时，每 30 秒静默刷新）
+function startCommunityPolling() {
+  if (communityPolling) return;
+  communityPolling = setInterval(() => {
+    if (communityReady) loadCommunityPosts(false, true);
+  }, 30000);
 }
 
 /* ========== PWA：安装与微信引导 ========== */
