@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -300,6 +300,34 @@ ul { list-style: none; }
   cursor: pointer; user-select: none; -webkit-user-select: none;
 }
 .post-cat-picker .pc-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ========== 课程提醒开关 ========== */
+.notify-switch {
+  position: relative; width: 46px; height: 26px;
+  background: #D9D9E0; border-radius: 13px;
+  cursor: pointer; transition: background .25s; flex-shrink: 0;
+  user-select: none; -webkit-user-select: none;
+}
+.notify-switch::after {
+  content: '';
+  position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  transition: transform .25s;
+}
+.notify-switch.on { background: var(--primary); }
+.notify-switch.on::after { transform: translateX(20px); }
+.notify-rule-text {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.7;
+  background: var(--bg); border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+  user-select: none; -webkit-user-select: none;
+}
+.notify-perm-btn {
+  font-size: 12px; color: #fff; background: var(--primary);
+  border: none; border-radius: 14px; padding: 5px 14px;
+  cursor: pointer; margin-top: 8px;
+  user-select: none; -webkit-user-select: none;
+}
 
 /* ========== 微信内打开引导 ========== */
 .wechat-guide {
@@ -971,6 +999,7 @@ ul { list-style: none; }
 <div class="view active" id="view-today">
   <div class="today-hero" id="todayHero">
     <div class="hero-points" id="heroPoints" title="签到可得积分">⭐ <span id="heroPointsValue">0</span></div>
+    <div class="hero-bell" id="notifyBadge" style="position:absolute;top:18px;right:78px;font-size:16px;cursor:pointer;" onclick="onNotifyBadgeClick()">🔔</div>
     <div class="hero-date" id="heroDate"></div>
     <div class="hero-weekday" id="heroWeekday"></div>
     <div class="hero-week" id="heroWeek"></div>
@@ -1126,6 +1155,19 @@ ul { list-style: none; }
       </div>
       <div class="points-rule">规则：每节课开始时间的前后 5 分钟内，可在今日课程列表点击「签到」，每次 +5 积分。每节课每天仅可签到一次。</div>
       <div class="checkin-history" id="checkinHistory"></div>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="sg-label">课程提醒</div>
+    <div class="settings-section">
+      <div class="settings-item" style="padding:2px 0 8px;">
+        <span class="si-label">课程提醒通知<span id="notifySwitchLabel" style="margin-left:8px;font-size:12px;color:var(--text-light);"></span></span>
+        <div class="notify-switch" id="notifySwitch" onclick="toggleNotifyEnabled()"></div>
+      </div>
+      <div id="notifyPermState" style="font-size:12px;color:var(--text-secondary);"></div>
+      <button class="notify-perm-btn" id="notifyPermBtn" style="display:none;" onclick="requestNotifyPermission()">开启通知权限</button>
+      <div class="notify-rule-text">规则：① 明天有早八（第1节）→ 今晚 21:30 提醒；② 早八当天早上 7:20 提醒；③ 每节课开始前 20 分钟和 10 分钟各提醒一次。<br>注：需保持页面/APP 在后台允许运行；浏览器通知权限需手动允许；提醒时间仅作参考，请勿完全依赖。</div>
     </div>
   </div>
 
@@ -1507,6 +1549,206 @@ function updateCheckinButtons() {
 function updateHeroPoints() {
   const el = document.getElementById('heroPointsValue');
   if (el) el.textContent = appData.points || 0;
+}
+
+/* ========== 课程提醒通知（早八双段 + 课前 20/10 分钟） ========== */
+const NOTIFY_LOG_KEY = 'courseNotifyLog';   // 已发送提醒日志（按天）
+const NOTIFY_WINDOW_SEC = 180;              // 目标时刻后 3 分钟内检查到即发（防后台节流漏发）
+const CLASS_LEAD_MINUTES = [20, 10];        // 课前提前提醒分钟数
+
+// 指定日期属于第几周（处理跨周：周日→周一）
+function getWeekOfDate(d) {
+  if (!appData.settings.semesterStart) return 1;
+  const start = new Date(appData.settings.semesterStart);
+  const diffDays = Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - start) / (1000*60*60*24));
+  const week = Math.floor(diffDays / 7) + 1;
+  if (week < 1) return 1;
+  if (week > (appData.settings.totalWeeks || 16)) return appData.settings.totalWeeks || 16;
+  return week;
+}
+
+// 获取某天（1-7）某周的课程列表
+function getCoursesForDay(dayNum, weekNum) {
+  return appData.courses.filter(c => {
+    if (c.day !== dayNum) return false;
+    if (c.weeks && c.weeks.length > 0) return c.weeks.indexOf(weekNum) >= 0;
+    return true;
+  }).sort((a, b) => a.startSlot - b.startSlot);
+}
+
+// 已发送日志（只保留当天，防重发）
+function getNotifyLog(todayStr) {
+  try {
+    const log = JSON.parse(localStorage.getItem(NOTIFY_LOG_KEY) || '{}');
+    if (log.date !== todayStr) return { date: todayStr, sent: {} };
+    return log;
+  } catch (e) { return { date: todayStr, sent: {} }; }
+}
+function isNotifySent(todayStr, key) { return !!getNotifyLog(todayStr).sent[key]; }
+function markNotifySent(todayStr, key) {
+  const log = getNotifyLog(todayStr);
+  log.sent[key] = Date.now();
+  try { localStorage.setItem(NOTIFY_LOG_KEY, JSON.stringify(log)); } catch (e) {}
+}
+
+// 发送通知（系统通知优先，权限未授予时 toast 兜底）
+function sendCourseNotification(title, body, tag) {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    try {
+      const n = new Notification(title, { body: body, tag: tag, icon: (location.protocol === 'https:' ? 'icons/icon-192.png' : undefined) });
+      setTimeout(() => n.close(), 10000);
+      return true;
+    } catch (e) { /* 某些环境构造失败，走 toast */ }
+  }
+  showToast(title + ' — ' + body);
+  return true;
+}
+
+// 请求通知权限（需在用户点击事件中调用）
+function requestNotifyPermission() {
+  if (typeof Notification === 'undefined') { showToast('当前浏览器不支持通知'); return; }
+  Notification.requestPermission().then(p => {
+    renderNotifySettings();
+    if (p === 'granted') showToast('通知权限已开启 🔔');
+    else if (p === 'denied') showToast('通知权限被拒绝，可在浏览器设置中重新允许');
+    else showToast('未做出选择，提醒将只在页面内提示');
+  });
+}
+
+// 提醒设置开关
+function toggleNotifyEnabled() {
+  appData.settings.notifyEnabled = !appData.settings.notifyEnabled;
+  saveData();
+  renderNotifySettings();
+  updateNotifyBadge();
+  if (appData.settings.notifyEnabled &&
+      typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    requestNotifyPermission(); // 开启时顺势请求权限
+  } else {
+    showToast(appData.settings.notifyEnabled ? '课程提醒已开启' : '课程提醒已关闭');
+  }
+}
+
+// 主调度：每 30 秒调用，判断当前是否命中任何提醒时刻
+function checkCourseNotifications() {
+  if (!appData.settings.notifyEnabled) return;
+  const now = new Date();
+  const todayStr = formatDate(now);
+  const nowSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const today = getTodayDayOfWeek();
+  const todayWeek = getCurrentWeek();
+  const todayCourses = getCoursesForDay(today, todayWeek);
+
+  // 1) 早八前一天晚 21:30 提醒（明天有第1节课）
+  if (nowSec >= 21*3600 + 30*60 && nowSec < 21*3600 + 30*60 + NOTIFY_WINDOW_SEC) {
+    const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrowDay = tomorrowDate.getDay() === 0 ? 7 : tomorrowDate.getDay();
+    const tomorrowWeek = getWeekOfDate(tomorrowDate);
+    const early8 = getCoursesForDay(tomorrowDay, tomorrowWeek).filter(c => c.startSlot === 1);
+    const key = 'early8-night';
+    if (early8.length && !isNotifySent(todayStr, key)) {
+      const c = early8[0];
+      const slot = TIME_SLOTS[0];
+      markNotifySent(todayStr, key);
+      sendCourseNotification(
+        '🌙 明天有早八：' + c.name,
+        '明早 ' + slot.start + ' · ' + (c.location || '地点待定') + (early8.length > 1 ? ' 等 ' + early8.length + ' 门课' : '') + '，今晚早点休息～',
+        'early8-night-' + todayStr
+      );
+    }
+  }
+
+  // 2) 早八当天早 7:20 提醒
+  if (nowSec >= 7*3600 + 20*60 && nowSec < 7*3600 + 20*60 + NOTIFY_WINDOW_SEC) {
+    const early8 = todayCourses.filter(c => c.startSlot === 1);
+    const key = 'early8-morning';
+    if (early8.length && !isNotifySent(todayStr, key)) {
+      const c = early8[0];
+      const slot = TIME_SLOTS[0];
+      markNotifySent(todayStr, key);
+      sendCourseNotification(
+        '☀️ 早八提醒：' + c.name,
+        '40分钟后（' + slot.start + '）上课 · ' + (c.location || '地点待定') + (c.teacher ? ' · ' + c.teacher : ''),
+        'early8-morning-' + todayStr
+      );
+    }
+  }
+
+  // 3) 今天的每节课开始前 20 分钟 / 10 分钟提醒
+  todayCourses.forEach(c => {
+    const slot = TIME_SLOTS[c.startSlot - 1];
+    if (!slot) return;
+    const sp = slot.start.split(':');
+    const startSec = parseInt(sp[0]) * 3600 + parseInt(sp[1]) * 60;
+    CLASS_LEAD_MINUTES.forEach(min => {
+      const target = startSec - min * 60;
+      if (nowSec >= target && nowSec < target + NOTIFY_WINDOW_SEC) {
+        const key = 'slot' + c.startSlot + '-' + min + 'min';
+        if (!isNotifySent(todayStr, key)) {
+          markNotifySent(todayStr, key);
+          const endSlot = TIME_SLOTS[c.endSlot - 1];
+          sendCourseNotification(
+            '⏰ ' + min + '分钟后上课：' + c.name,
+            (c.location ? '📍 ' + c.location + ' · ' : '') + (c.teacher ? '👤 ' + c.teacher + ' · ' : '') +
+            '第' + c.startSlot + '-' + c.endSlot + '节（' + slot.start + '-' + (endSlot ? endSlot.end : '') + '）',
+            'class-' + c.id + '-' + min + '-' + todayStr
+          );
+        }
+      }
+    });
+  });
+}
+
+// 今日页通知状态徽章（🔔 已允许 / 🔕 未开启，点击可请求权限）
+function updateNotifyBadge() {
+  const el = document.getElementById('notifyBadge');
+  if (!el) return;
+  const on = appData.settings.notifyEnabled;
+  const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+  if (!on) {
+    el.textContent = '🔕';
+    el.title = '课程提醒已关闭（设置中可开启）';
+  } else if (granted) {
+    el.textContent = '🔔';
+    el.title = '课程提醒通知已开启';
+  } else {
+    el.textContent = '🔕';
+    el.title = '通知权限未开启，点击此处开启';
+  }
+}
+
+function onNotifyBadgeClick() {
+  if (!appData.settings.notifyEnabled) { switchView('settings'); return; }
+  if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+    requestNotifyPermission();
+  } else {
+    switchView('settings');
+  }
+}
+
+// 渲染设置页提醒区块
+function renderNotifySettings() {
+  const sw = document.getElementById('notifySwitch');
+  const perm = document.getElementById('notifyPermState');
+  if (!sw) return;
+  sw.classList.toggle('on', !!appData.settings.notifyEnabled);
+  document.getElementById('notifySwitchLabel').textContent = appData.settings.notifyEnabled ? '已开启' : '已关闭';
+  if (perm) {
+    const p = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+    if (p === 'granted') {
+      perm.innerHTML = '<span style="color:var(--success)">🔔 通知权限已开启</span>';
+      document.getElementById('notifyPermBtn').style.display = 'none';
+    } else if (p === 'denied') {
+      perm.innerHTML = '<span style="color:var(--accent)">⛔ 通知被浏览器拦截，请在浏览器地址栏设置中允许本站通知</span>';
+      document.getElementById('notifyPermBtn').style.display = 'none';
+    } else if (p === 'unsupported') {
+      perm.innerHTML = '<span style="color:var(--text-light)">当前浏览器不支持通知</span>';
+      document.getElementById('notifyPermBtn').style.display = 'none';
+    } else {
+      perm.innerHTML = '<span style="color:var(--warning)">🔕 通知权限未开启（提醒将只在页面内提示）</span>';
+      document.getElementById('notifyPermBtn').style.display = 'inline-block';
+    }
+  }
 }
 
 /* ========== 帖子广场（Supabase 云社区） ========== */
@@ -2027,7 +2269,7 @@ if (/MicroMessenger/i.test(navigator.userAgent)) {
   });
 }
 
-let appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' } }, points: 0, checkins: [] };
+let appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' }, notifyEnabled: true }, points: 0, checkins: [] };
 let currentView = 'today';
 let currentWeekOffset = 0;
 let selectedColor = COURSE_COLORS[0];
@@ -2046,7 +2288,7 @@ function loadData() {
       appData = {
         courses: parsed.courses || [],
         reminders: parsed.reminders || [],
-        settings: parsed.settings || { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' } },
+        settings: parsed.settings || { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' }, notifyEnabled: true },
         points: (typeof parsed.points === 'number' && !isNaN(parsed.points)) ? parsed.points : 0,
         checkins: Array.isArray(parsed.checkins) ? parsed.checkins : []
       };
@@ -2057,6 +2299,7 @@ function loadData() {
       for (var bk in defaultBreaks) {
         if (!appData.settings.breakAfter[bk]) { appData.settings.breakAfter[bk] = defaultBreaks[bk]; needSave = true; }
       }
+      if (typeof appData.settings.notifyEnabled !== 'boolean') { appData.settings.notifyEnabled = true; needSave = true; }
       if (needSave) saveData();
     }
   } catch(e) { console.warn('数据加载失败', e); }
@@ -2149,6 +2392,7 @@ function renderToday() {
   renderTodayCourses(todayCourses, now);
   renderNextClass(todayCourses, now);
   updateHeroPoints();
+  updateNotifyBadge();
 
   // 今日提醒
   const todayStr = formatDate(now);
@@ -2804,6 +3048,7 @@ function renderSettings() {
   document.getElementById('semesterStart').value = appData.settings.semesterStart || '';
   document.getElementById('totalWeeks').value = appData.settings.totalWeeks || 16;
   renderPointsSection();
+  renderNotifySettings();
 }
 
 // 设置页：积分系统区块渲染
@@ -2879,7 +3124,7 @@ function confirmClearAll() {
 }
 
 function clearAllData() {
-  appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' } }, points: 0, checkins: [] };
+  appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' }, notifyEnabled: true }, points: 0, checkins: [] };
   saveData();
   closeModal('modalConfirm');
   showToast('所有数据已清空');
@@ -5065,6 +5310,10 @@ function init() {
   setInterval(() => {
     if (currentView === 'today') updateCheckinButtons();
   }, 20000);
+
+  // 课程提醒通知：每 30 秒检查一次提醒时刻（早八/课前）
+  setInterval(checkCourseNotifications, 30000);
+  checkCourseNotifications();
 
   // 帖子广场：首次预初始化（CDN 已加载时建立连接与实时订阅）
   initCommunity();
