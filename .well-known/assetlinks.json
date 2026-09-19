@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.quietwater8181.tjkb",
+    "sha256_cert_fingerprints": [
+      "77:2E:19:3D:26:9F:7E:41:6C:B7:72:05:A2:14:52:41:E6:4D:BF:96:30:82:A7:E9:E6:65:60:73:7E:36:BB:F7"
+    ]
+  }
+}]
