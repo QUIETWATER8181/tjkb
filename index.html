@@ -3422,9 +3422,10 @@ async function aiRecognizeSchedule(imageDataUrl) {
   return normalizeAiCourses(parsed.courses);
 }
 
-// ===== 服务器中转识别（Supabase Edge Function，零配置）=====
+// ===== 服务器中转识别（Supabase Edge Function，零配置，异步任务+轮询）=====
 async function serverRecognizeSchedule(imageDataUrl) {
-  const compressed = await compressImageForAi(imageDataUrl, 1400, 0.82);
+  const compressed = await compressImageForAi(imageDataUrl, 1200, 0.85);
+  // 1. 创建识别任务
   let resp;
   try {
     resp = await fetch(SUPABASE_URL + '/functions/v1/ai-recognize', {
@@ -3441,14 +3442,36 @@ async function serverRecognizeSchedule(imageDataUrl) {
   }
   let data = null;
   try { data = await resp.json(); } catch(e) {}
-  if (!resp.ok) {
+  if (!resp.ok || !data || !data.jobId) {
     const err = new Error((data && data.message) || ('服务异常 HTTP ' + resp.status));
     err.friendly = true;
-    if (data && data.error === 'rate_limited') err.friendly = true;
     throw err;
   }
-  if (!data || !Array.isArray(data.courses)) throw new Error('AI 返回内容无法解析为课程数据');
-  return normalizeAiCourses(data.courses);
+  // 2. 轮询任务结果（每 5 秒，最长 4 分钟）
+  const jobId = data.jobId;
+  const deadline = Date.now() + 240000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 5000));
+    let st, sj;
+    try {
+      st = await fetch(SUPABASE_URL + '/functions/v1/ai-recognize-status?jobId=' + encodeURIComponent(jobId), {
+        headers: { 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY }
+      });
+      sj = await st.json();
+    } catch(e) { continue; } // 网络抖动，继续轮询
+    if (sj && sj.status === 'done' && Array.isArray(sj.courses)) {
+      return normalizeAiCourses(sj.courses);
+    }
+    if (sj && sj.status === 'failed') {
+      const err = new Error(sj.message || 'AI 识别失败');
+      err.friendly = true;
+      throw err;
+    }
+    // pending → 继续等
+  }
+  const err = new Error('识别超时，请稍后重试');
+  err.friendly = true;
+  throw err;
 }
 
 // 稳定设备号（限流用，localStorage）
@@ -3644,7 +3667,7 @@ async function runOcr(imageDataUrl) {
   // 级别2：服务器中转（Supabase Edge Function，零配置，每设备每日限流）
   if (navigator.onLine && location.protocol !== 'file:') {
     try {
-      loadingText.textContent = 'AI 视觉识别中（服务器中转，约 1-2 分钟，请勿关闭弹窗）...';
+      loadingText.textContent = 'AI 视觉识别中（服务器，约 1-2 分钟，请勿关闭弹窗）...';
       progressBar.style.width = '30%';
       const courses = await serverRecognizeSchedule(imageDataUrl);
       return applyAiResult(courses, '服务器');
