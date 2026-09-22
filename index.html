@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -328,6 +328,38 @@ ul { list-style: none; }
   cursor: pointer; margin-top: 8px;
   user-select: none; -webkit-user-select: none;
 }
+
+/* ========== AI 识别配置 ========== */
+.ai-config-note {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.7;
+  background: var(--bg); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+}
+.ai-config-form { display: flex; flex-direction: column; gap: 10px; }
+.ai-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.ai-field input {
+  width: 100%; box-sizing: border-box;
+  font-size: 13px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  outline: none; background: var(--card); color: var(--text);
+}
+.ai-field input:focus { border-color: var(--primary); }
+/* 确认页疑惑提示条 */
+.ori-issue {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 12px; color: #8A6D1A;
+  background: #FFF7E0; border: 1px solid #F3E1A8;
+  border-radius: 8px; padding: 8px 10px; margin-top: 8px;
+  line-height: 1.6; word-break: break-word;
+}
+.ori-weeks-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.ori-weeks-chip {
+  font-size: 11px; padding: 3px 10px; border-radius: 12px;
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text-secondary); cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.ori-weeks-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.ori-custom-weeks { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); outline: none; width: 150px; }
 
 /* ========== 微信内打开引导 ========== */
 .wechat-guide {
@@ -807,6 +839,14 @@ ul { list-style: none; }
 .reminder-item .ri-note { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .reminder-item .ri-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; }
 .reminder-item.urgent { border-left: 3px solid var(--accent); }
+/* v1.1：今天到期的提醒徽章（合并进今日页后突出当日事项） */
+.reminder-item .ri-today-badge {
+  font-size: 10px; padding: 1px 8px; border-radius: 10px;
+  background: var(--accent); color: #fff;
+  font-weight: 600; white-space: nowrap;
+}
+.reminder-item.is-today { background: var(--primary-light); }
+.reminder-item.is-today .ri-title { color: var(--primary-dark); font-weight: 600; }
 
 /* ========== 设置页 ========== */
 .settings-group { margin-bottom: 20px; }
@@ -1021,15 +1061,36 @@ ul { list-style: none; }
 
   <div class="card">
     <div class="card-title">
-      <span><span class="icon">📌</span>今日提醒</span>
-      <span id="todayReminderCount" style="font-size:13px;color:var(--text-secondary);font-weight:400;"></span>
+      <span><span class="icon">🌅</span>明日课程</span>
+      <span id="tomorrowCourseCount" style="font-size:13px;color:var(--text-secondary);font-weight:400;"></span>
     </div>
-    <div id="todayReminderList">
+    <div id="tomorrowCourseList">
       <div class="empty-state">
-        <div class="emoji">✨</div>
-        <div class="text">今天没有待办事项</div>
+        <div class="emoji">🌴</div>
+        <div class="text">明天没有课，好好休息吧</div>
       </div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span><span class="icon">📌</span>提醒事项</span>
+      <span id="reminderCount" style="font-size:13px;color:var(--text-secondary);font-weight:400;"></span>
+    </div>
+    <div class="filters-row" id="filtersRow">
+      <button class="filter-arrow" id="filterArrowLeft" onclick="scrollFilters(-1)" aria-label="向左翻动分类">‹</button>
+      <div class="reminder-filters" id="reminderFilters">
+        <div class="filter-chip active" data-filter="all" onclick="filterReminders('all')">全部</div>
+        <div class="filter-chip" data-filter="pending" onclick="filterReminders('pending')">待办</div>
+        <div class="filter-chip" data-filter="done" onclick="filterReminders('done')">已完成</div>
+        <div class="filter-chip" data-filter="exam" onclick="filterReminders('exam')">考试</div>
+        <div class="filter-chip" data-filter="homework" onclick="filterReminders('homework')">作业</div>
+        <div class="filter-chip" data-filter="activity" onclick="filterReminders('activity')">活动</div>
+        <div class="filter-chip" data-filter="personal" onclick="filterReminders('personal')">个人</div>
+      </div>
+      <button class="filter-arrow" id="filterArrowRight" onclick="scrollFilters(1)" aria-label="向右翻动分类">›</button>
+    </div>
+    <div id="reminderList"></div>
   </div>
 </div>
 
@@ -1052,24 +1113,6 @@ ul { list-style: none; }
   <div style="margin-top:14px;text-align:center;font-size:13px;color:var(--text-secondary);padding:12px;">
     点击空白格子添加课程 · 点击课程块编辑或删除
   </div>
-</div>
-
-<!-- ========== 提醒事项 ========== -->
-<div class="view" id="view-reminders">
-  <div class="filters-row" id="filtersRow">
-    <button class="filter-arrow" id="filterArrowLeft" onclick="scrollFilters(-1)" aria-label="向左翻动分类">‹</button>
-    <div class="reminder-filters" id="reminderFilters">
-      <div class="filter-chip active" data-filter="all" onclick="filterReminders('all')">全部</div>
-      <div class="filter-chip" data-filter="pending" onclick="filterReminders('pending')">待办</div>
-      <div class="filter-chip" data-filter="done" onclick="filterReminders('done')">已完成</div>
-      <div class="filter-chip" data-filter="exam" onclick="filterReminders('exam')">考试</div>
-      <div class="filter-chip" data-filter="homework" onclick="filterReminders('homework')">作业</div>
-      <div class="filter-chip" data-filter="activity" onclick="filterReminders('activity')">活动</div>
-      <div class="filter-chip" data-filter="personal" onclick="filterReminders('personal')">个人</div>
-    </div>
-    <button class="filter-arrow" id="filterArrowRight" onclick="scrollFilters(1)" aria-label="向右翻动分类">›</button>
-  </div>
-  <div id="reminderList"></div>
 </div>
 
 <!-- ========== 帖子广场 ========== -->
@@ -1172,6 +1215,30 @@ ul { list-style: none; }
   </div>
 
   <div class="settings-group">
+    <div class="sg-label">AI 识别（课表截图）</div>
+    <div class="settings-section">
+      <div class="ai-config-note">截图导入已默认使用服务器 AI 识别（无需任何配置，每台设备每天限 15 次）。此处为高级选项：填写自己的接口后优先用自配密钥（无限流）——识别结果均会进入确认页供逐条核对，密钥仅存本机浏览器。</div>
+      <div class="ai-config-form">
+        <div class="ai-field">
+          <label>接口地址（OpenAI 兼容）</label>
+          <input type="text" id="aiOcrBaseUrl" placeholder="https://api.siliconflow.cn/v1">
+        </div>
+        <div class="ai-field">
+          <label>API 密钥</label>
+          <input type="password" id="aiOcrApiKey" placeholder="sk-..." autocomplete="off">
+        </div>
+        <div class="ai-field">
+          <label>视觉模型名</label>
+          <input type="text" id="aiOcrModel" placeholder="Qwen/Qwen2.5-VL-32B-Instruct">
+        </div>
+        <button class="notify-perm-btn" onclick="saveAiOcrConfig()" style="margin-top:2px;">保存配置</button>
+        <button class="notify-perm-btn" id="aiOcrTestBtn" style="background:var(--success);margin-top:2px;" onclick="testAiOcrConfig()">测试连接</button>
+      </div>
+      <div id="aiOcrState" style="font-size:12px;color:var(--text-secondary);margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <div class="settings-group">
     <div class="sg-label">应用安装</div>
     <div class="settings-item" id="installItem" style="display:none;">
       <span class="si-label">安装到手机桌面（离线可用）</span>
@@ -1224,10 +1291,6 @@ ul { list-style: none; }
   <div class="tab-item" data-view="schedule" onclick="switchView('schedule')">
     <div class="tab-icon">📅</div>
     <div class="tab-label">课表</div>
-  </div>
-  <div class="tab-item" data-view="reminders" onclick="switchView('reminders')">
-    <div class="tab-icon">📌</div>
-    <div class="tab-label">提醒</div>
   </div>
   <div class="tab-item" data-view="community" onclick="switchView('community')">
     <div class="tab-icon">💬</div>
@@ -1557,9 +1620,12 @@ const NOTIFY_WINDOW_SEC = 180;              // 目标时刻后 3 分钟内检查
 const CLASS_LEAD_MINUTES = [20, 10];        // 课前提前提醒分钟数
 
 // 指定日期属于第几周（处理跨周：周日→周一）
+// 修复：ISO 日期字符串解析为 UTC 午夜，与本地午夜相减会差时区偏移（东八区 -8h）导致周次算错。
+// 统一将学期开始日转为本地午夜再计算。
 function getWeekOfDate(d) {
   if (!appData.settings.semesterStart) return 1;
-  const start = new Date(appData.settings.semesterStart);
+  const ps = appData.settings.semesterStart.split('-');
+  const start = new Date(parseInt(ps[0]), parseInt(ps[1]) - 1, parseInt(ps[2])); // 本地午夜
   const diffDays = Math.floor((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - start) / (1000*60*60*24));
   const week = Math.floor(diffDays / 7) + 1;
   if (week < 1) return 1;
@@ -1754,9 +1820,20 @@ function renderNotifySettings() {
 /* ========== 帖子广场（Supabase 云社区） ========== */
 const COMMUNITY_IDENTITY_KEY = 'community_identity';
 const COMMUNITY_CATEGORIES = ['闲聊', '提问', '找搭子', '吐槽'];
-const NICK_ADJ = ['软乎乎', '甜津津', '慢悠悠', '懒洋洋', '亮晶晶', '暖乎乎'];
-const NICK_NOUN = ['牛奶糖', '小熊饼', '苏打饼', '糯米糍', '布丁猫', '小汤圆'];
+// 随机昵称词库（学习主题）：形容词 × 名词随机组合，共 20×40=800 种
+const NICK_ADJ = ['认真听讲', '疯狂刷题', '熬夜复习', '沉迷自习', '努力背书', '安静思考', '高效笔记', '晨读打卡',
+                  '满分冲刺', '图书馆常驻', '错题整理', '预习狂魔', '从容应考', '耐心钻研', '灵感爆发', '思路清晰',
+                  '临时抱佛脚', '划重点', '求知若渴', '温故知新'];
+const NICK_NOUN = ['高数侠', '线代骑士', '英语学霸', '物理少年', '化学实验员', '生物观察家', '程序猿', '算法选手',
+                   '文学青年', '历史爱好者', '哲学思考者', '地理探索家', '政治课代表', '概率幸运儿', '统计师', '微积分爱好者',
+                   '实验室守夜人', '论文赶稿人', '文献搬运工', 'PPT纺织工', '单词收割机', '听力磨耳朵', '口语练习生', '阅读理解家',
+                   '考试锦鲤', '绩点守护者', '奖学金猎手', '保研冲刺者', '考研上岸人', '早八幸存者', '晚课常客', '自习室钉子户',
+                   '笔记本大师', '荧光笔收藏家', '草稿纸消耗王', '错题本管理员', '闹钟设定者', '咖啡续命中', '脑细胞养殖场'];
 const AVATAR_COLORS = ['#B8DCF5', '#C3E6B7', '#F8CDBE', '#FAE3A8', '#D9CBEA', '#BFE5E0', '#F5CFE4'];
+// 生成随机学习风昵称
+function randomNickname() {
+  return NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] + '的' + NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)];
+}
 // 基础敏感词表（用户可自行增删）
 const BAD_WORDS = ['加微信', '兼职刷单', '博彩', '赌博', '裸聊', '代考包过', '小额贷款'];
 let communityChannel = null;        // 实时订阅 WebSocket
@@ -1782,7 +1859,7 @@ function getIdentity() {
   if (id && id.userId && id.nickname) return id;
   id = {
     userId: Math.random().toString(36).slice(2, 10) + Date.now().toString(36),
-    nickname: NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] + '的' + NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)],
+    nickname: randomNickname(),
     createdAt: new Date().toISOString()
   };
   try { localStorage.setItem(COMMUNITY_IDENTITY_KEY, JSON.stringify(id)); } catch(e) {}
@@ -1792,7 +1869,11 @@ function getIdentity() {
 // 换随机昵称（userId 不变，历史帖昵称不回改）
 function changeNickname() {
   const id = getIdentity();
-  id.nickname = NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] + '的' + NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)];
+  let next = randomNickname();
+  // 避免连续换到同一个
+  let guard = 0;
+  while (next === id.nickname && guard < 10) { next = randomNickname(); guard++; }
+  id.nickname = next;
   try { localStorage.setItem(COMMUNITY_IDENTITY_KEY, JSON.stringify(id)); } catch(e) {}
   renderCommunityMe();
   showToast('已换昵称：' + id.nickname);
@@ -2329,9 +2410,10 @@ function getTodayDayOfWeek() {
 
 function getCurrentWeek() {
   if (!appData.settings.semesterStart) return 1;
-  const start = new Date(appData.settings.semesterStart);
+  const ps = appData.settings.semesterStart.split('-');
+  const start = new Date(parseInt(ps[0]), parseInt(ps[1]) - 1, parseInt(ps[2])); // 本地午夜，修复时区偏移
   const now = new Date();
-  const diffDays = Math.floor((now - start) / (1000*60*60*24));
+  const diffDays = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - start) / (1000*60*60*24));
   const week = Math.floor(diffDays / 7) + 1;
   if (week < 1) return 1;
   if (week > appData.settings.totalWeeks) return appData.settings.totalWeeks;
@@ -2348,9 +2430,8 @@ function switchView(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + view).classList.add('active');
   document.querySelectorAll('.tab-item').forEach(t => t.classList.toggle('active', t.dataset.view === view));
-  if (view === 'today') renderToday();
+  if (view === 'today') { renderToday(); updateFilterArrows(); }
   if (view === 'schedule') renderSchedule();
-  if (view === 'reminders') { renderReminders(); updateFilterArrows(); }
   if (view === 'community') {
     renderCommunityMe();
     if (!communityInitTried) initCommunity();
@@ -2394,14 +2475,15 @@ function renderToday() {
   updateHeroPoints();
   updateNotifyBadge();
 
-  // 今日提醒
-  const todayStr = formatDate(now);
-  const todayReminders = appData.reminders
-    .filter(r => r.date === todayStr)
-    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  // v1.1：明日课程（跨周/跨日自动判断星期与周次）
+  const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const tomorrowDay = tomorrowDate.getDay() === 0 ? 7 : tomorrowDate.getDay();
+  const tomorrowCourses = getCoursesForDay(tomorrowDay, getWeekOfDate(tomorrowDate));
+  renderTomorrowCourses(tomorrowCourses, tomorrowDate);
 
-  renderTodayReminders(todayReminders);
-}
+  // v1.1：提醒合并进今日页 —— 渲染完整提醒列表（含筛选栏）
+  renderReminders();
+} 
 
 function renderTodayCourses(courses, now) {
   const container = document.getElementById('todayCourseList');
@@ -2454,6 +2536,47 @@ function renderTodayCourses(courses, now) {
   }).join('');
 }
 
+/* ========== 明日课程（v1.1） ========== */
+function renderTomorrowCourses(courses, tomorrowDate) {
+  const container = document.getElementById('tomorrowCourseList');
+  const countEl = document.getElementById('tomorrowCourseCount');
+  if (!container) return;
+  const weekdayName = WEEKDAY_NAMES[tomorrowDate.getDay()];
+  countEl.textContent = courses.length ? `共 ${courses.length} 节` : '';
+
+  if (!courses.length) {
+    container.innerHTML = `<div class="empty-state"><div class="emoji">🌴</div><div class="text">明天（${weekdayName}）没有课，好好休息吧</div></div>`;
+    return;
+  }
+
+  container.innerHTML = courses.map(c => {
+    const slot = TIME_SLOTS[c.startSlot - 1];
+    const endSlot = TIME_SLOTS[c.endSlot - 1];
+    if (!slot || !endSlot) return '';
+    return `
+      <div class="course-item-today" onclick="editCourse('${c.id}')">
+        <div class="time-col">
+          <div class="start">${slot.start}</div>
+          <div class="end">${endSlot.end}</div>
+        </div>
+        <div class="color-bar" style="background:${getCourseTextColor(c)}"></div>
+        <div class="info-col">
+          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="meta">
+            ${c.location ? `<span>📍 ${escapeHtml(c.location)}</span>` : ''}
+            ${c.teacher ? `<span>👤 ${escapeHtml(c.teacher)}</span>` : ''}
+            <span>第${c.startSlot}-${c.endSlot}节</span>
+            ${c.weeks && c.weeks.length ? `<span>📅 第${weeksToText(c.weeks, appData.settings.totalWeeks || 16)}周</span>` : ''}
+          </div>
+        </div>
+        <div class="right-col">
+          <div class="status-badge upcoming">${weekdayName}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function renderNextClass(courses, now) {
   const heroNext = document.getElementById('heroNext');
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -2487,31 +2610,6 @@ function renderNextClass(courses, now) {
       heroNext.innerHTML = `<span class="no-class">今日课程已全部结束 🎉</span>`;
     }
   }
-}
-
-function renderTodayReminders(reminders) {
-  const container = document.getElementById('todayReminderList');
-  const countEl = document.getElementById('todayReminderCount');
-  const pending = reminders.filter(r => !r.done).length;
-  countEl.textContent = reminders.length ? `${pending} 项待办 / ${reminders.length} 项` : '';
-
-  if (!reminders.length) {
-    container.innerHTML = '<div class="empty-state"><div class="emoji">✨</div><div class="text">今天没有待办事项</div></div>';
-    return;
-  }
-
-  container.innerHTML = reminders.map(r => `
-    <div class="reminder-item-today">
-      <div class="check ${r.done ? 'done' : ''}" onclick="event.stopPropagation();toggleReminderDone('${r.id}')">${r.done ? '✓' : ''}</div>
-      <div class="ri-content" onclick="editReminder('${r.id}')">
-        <div class="ri-title ${r.done ? 'done' : ''}">${escapeHtml(r.title)}</div>
-        <div class="ri-meta">
-          ${r.time ? `⏰ ${r.time}` : ''}
-          <span class="ri-tag tag-${r.category}">${TAG_NAMES[r.category] || r.category}</span>
-        </div>
-      </div>
-    </div>
-  `).join('');
 }
 
 /* ========== 课表管理 ========== */
@@ -2923,8 +3021,7 @@ function saveReminder() {
   saveData();
   closeModal('modalReminder');
   showToast(editId ? '提醒已更新' : '提醒已添加');
-  if (currentView === 'reminders') renderReminders();
-  if (currentView === 'today') renderToday();
+    if (currentView === 'today') renderToday();
 }
 
 function deleteReminder() {
@@ -2934,8 +3031,7 @@ function deleteReminder() {
   saveData();
   closeModal('modalReminder');
   showToast('提醒已删除');
-  if (currentView === 'reminders') renderReminders();
-  if (currentView === 'today') renderToday();
+    if (currentView === 'today') renderToday();
 }
 
 function toggleReminderDone(id) {
@@ -2943,15 +3039,14 @@ function toggleReminderDone(id) {
   if (!r) return;
   r.done = !r.done;
   saveData();
-  if (currentView === 'reminders') renderReminders();
-  if (currentView === 'today') renderToday();
+    if (currentView === 'today') renderToday();
 }
 
 /* ========== 提醒列表渲染 ========== */
 function filterReminders(filter) {
   reminderFilter = filter;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
-  ensureChipVisible(document.querySelector(`.filter-chip[data-filter="${filter}"]`));
+  document.querySelectorAll('#reminderFilters .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
+  ensureChipVisible(document.querySelector(`#reminderFilters .filter-chip[data-filter="${filter}"]`));
   renderReminders();
 }
 
@@ -2990,7 +3085,14 @@ function ensureChipVisible(chip) {
 
 function renderReminders() {
   const container = document.getElementById('reminderList');
+  const countEl = document.getElementById('reminderCount');
   let list = [...appData.reminders];
+
+  // 标题计数：今日待办 / 总数
+  const todayStr = formatDate(new Date());
+  const todayList = appData.reminders.filter(r => r.date === todayStr);
+  const todayPending = todayList.filter(r => !r.done).length;
+  if (countEl) countEl.textContent = todayList.length ? `今日 ${todayPending} 项待办 / 共 ${appData.reminders.length} 项` : (appData.reminders.length ? `共 ${appData.reminders.length} 项` : '');
 
   // 过滤
   if (reminderFilter === 'pending') list = list.filter(r => !r.done);
@@ -3008,7 +3110,6 @@ function renderReminders() {
     return;
   }
 
-  const todayStr = formatDate(new Date());
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = formatDate(tomorrow);
 
@@ -3021,8 +3122,9 @@ function renderReminders() {
       dateLabel = `${d.getMonth()+1}月${d.getDate()}日`;
     }
     const isUrgent = !r.done && r.date < todayStr;
+    const isToday = r.date === todayStr; // v1.1：今天到期高亮
     return `
-      <div class="reminder-item ${isUrgent ? 'urgent' : ''}">
+      <div class="reminder-item ${isUrgent ? 'urgent' : ''} ${isToday ? 'is-today' : ''}">
         <div class="check ${r.done ? 'done' : ''}" onclick="toggleReminderDone('${r.id}')">${r.done ? '✓' : ''}</div>
         <div class="ri-body">
           <div class="ri-top">
@@ -3033,6 +3135,7 @@ function renderReminders() {
           </div>
           <div class="ri-bottom">
             <span class="ri-date">📅 ${dateLabel}${r.time ? ' ⏰ ' + r.time : ''}</span>
+            ${isToday ? '<span class="ri-today-badge">今天</span>' : ''}
             <span class="ri-tag tag-${r.category}">${TAG_NAMES[r.category] || r.category}</span>
           </div>
           ${r.note ? `<div class="ri-note">${escapeHtml(r.note)}</div>` : ''}
@@ -3049,6 +3152,7 @@ function renderSettings() {
   document.getElementById('totalWeeks').value = appData.settings.totalWeeks || 16;
   renderPointsSection();
   renderNotifySettings();
+  renderAiOcrConfig();
 }
 
 // 设置页：积分系统区块渲染
@@ -3110,8 +3214,7 @@ function importData(event) {
       showToast('数据导入成功');
       if (currentView === 'today') renderToday();
       if (currentView === 'schedule') renderSchedule();
-      if (currentView === 'reminders') renderReminders();
-      if (currentView === 'settings') renderSettings();
+            if (currentView === 'settings') renderSettings();
     } catch(err) {
       showToast('导入失败：文件格式错误');
     }
@@ -3168,14 +3271,11 @@ function saveSlotTime() {
 function onFabClick() {
   if (currentView === 'schedule') {
     openAddCourse(getTodayDayOfWeek(), 1);
-  } else if (currentView === 'reminders') {
-    openAddReminder();
   } else if (currentView === 'community') {
     openPostModal();
-  } else if (currentView === 'today') {
-    openAddReminder();
   } else {
-    switchView('reminders');
+    // 今日/其他页面：添加提醒（v1.1 提醒已并入今日）
+    if (currentView !== 'today') switchView('today');
     openAddReminder();
   }
 }
@@ -3197,8 +3297,298 @@ function escapeHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* ========== AI 视觉识别（课表截图 → 结构化课程） ========== */
+const AI_OCR_CONFIG_KEY = 'ai_ocr_config';
+const AI_OCR_PROMPT = `你是大学课表识别助手。请仔细识别这张课表截图，输出严格的 JSON。
+
+输出格式：
+{"courses":[{"name":"课程名","teacher":"教师","location":"地点","day":1,"startSlot":1,"endSlot":2,"weeks":[1,2],"weeksText":"[1-16周]","uncertain":false,"uncertainReason":"","splitNote":""}]}
+
+字段规则：
+- day：周一=1，周二=2 …周日=7
+- startSlot/endSlot：开始/结束节次（数字）
+- weeks：上课周次的数字数组。"1-16周"→[1,2,...,16]；"单周"→[1,3,5,...,15]；"双周"→[2,4,6,...,16]；"1,7,13,15-16周"→[1,7,13,15,16]；未标注则填全部周次
+- weeksText：截图上原始周次文字（原样保留）
+- teacher/location：若截图上有教师工号（如"张文彬(10083)"）请完整保留
+- uncertain：该条任何字段模糊、可能识别错时置 true，并在 uncertainReason 用一句话说明（如"教室号不确定""周次部分模糊"）
+- splitNote：**同一时间格出现多段排课时必填**。两种情况：
+  ① 同一门课不同老师分段（如1-6周A老师、7-12周B老师）→ 合并为一条，teacher 写"A(1-6周)、B(7-12周)"，weeks 取并集，splitNote 写明分段详情
+  ② 两门不同课程共用同一格（如单周上课、双周上课）→ 输出为两条独立记录，各自 weeks 只含自己上课的周次，splitNote 写明"与《另一课程名》交错排课"
+- 不要遗漏任何课程；周日无课则不输出周日条目
+- 只输出 JSON，不要任何解释文字`;
+
+// 读取 AI 配置（localStorage 独立存储，不随数据导出）
+function getAiOcrConfig() {
+  try {
+    const c = JSON.parse(localStorage.getItem(AI_OCR_CONFIG_KEY) || '{}');
+    return { baseUrl: c.baseUrl || '', apiKey: c.apiKey || '', model: c.model || '' };
+  } catch(e) { return { baseUrl: '', apiKey: '', model: '' }; }
+}
+
+function isAiOcrReady() {
+  const c = getAiOcrConfig();
+  return !!(c.baseUrl && c.apiKey && c.model);
+}
+
+function saveAiOcrConfig() {
+  const cfg = {
+    baseUrl: document.getElementById('aiOcrBaseUrl').value.trim().replace(/\/+$/, ''),
+    apiKey: document.getElementById('aiOcrApiKey').value.trim(),
+    model: document.getElementById('aiOcrModel').value.trim()
+  };
+  if (!cfg.baseUrl || !cfg.apiKey || !cfg.model) { showToast('请填写完整三项配置'); return; }
+  try { localStorage.setItem(AI_OCR_CONFIG_KEY, JSON.stringify(cfg)); } catch(e) {}
+  renderAiOcrConfig();
+  showToast('AI 识别配置已保存');
+}
+
+function clearAiOcrConfig() {
+  try { localStorage.removeItem(AI_OCR_CONFIG_KEY); } catch(e) {}
+  renderAiOcrConfig();
+  showToast('已清除 AI 识别配置');
+}
+
+function renderAiOcrConfig() {
+  const c = getAiOcrConfig();
+  const stateEl = document.getElementById('aiOcrState');
+  if (!document.getElementById('aiOcrBaseUrl')) return;
+  document.getElementById('aiOcrBaseUrl').value = c.baseUrl || 'https://api.siliconflow.cn/v1';
+  document.getElementById('aiOcrApiKey').value = c.apiKey || '';
+  document.getElementById('aiOcrModel').value = c.model || 'Qwen/Qwen2.5-VL-32B-Instruct';
+  if (stateEl) {
+    stateEl.innerHTML = c.apiKey
+      ? '<span style="color:var(--success);">✓ 已配置：截图导入将优先使用 AI 识别（失败自动回退离线 OCR）</span> <button class="community-nick-btn" onclick="clearAiOcrConfig()">清除</button>'
+      : '未配置：将使用离线 OCR（准确率较低）';
+  }
+}
+
+// 测试 AI 连接（发一个 1x1 纯文本请求，验证地址/密钥/模型有效性）
+async function testAiOcrConfig() {
+  const btn = document.getElementById('aiOcrTestBtn');
+  const stateEl = document.getElementById('aiOcrState');
+  saveAiOcrConfig();
+  if (!isAiOcrReady()) return;
+  btn.textContent = '测试中...'; btn.disabled = true;
+  try {
+    const res = await aiChatCompletion([{ role: 'user', content: '你好，请回复"OK"' }], false);
+    const reply = (res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content) || '';
+    stateEl.innerHTML = '<span style="color:var(--success);">✓ 连接成功' + (reply ? '（模型回复：' + escapeHtml(reply.slice(0, 20)) + '）' : '') + '</span>';
+    showToast('AI 连接成功');
+  } catch(e) {
+    stateEl.innerHTML = '<span style="color:var(--accent);">✗ 连接失败：' + escapeHtml(e.message || '未知错误') + '</span>';
+    showToast('AI 连接失败，请检查配置');
+  }
+  btn.textContent = '测试连接'; btn.disabled = false;
+}
+
+// OpenAI 兼容 chat/completions 调用
+async function aiChatCompletion(messages, withImage) {
+  const cfg = getAiOcrConfig();
+  if (!cfg.baseUrl || !cfg.apiKey || !cfg.model) throw new Error('未配置 AI 识别');
+  const body = { model: cfg.model, messages: messages, temperature: 0 };
+  if (!withImage) body.max_tokens = 200;
+  let resp;
+  try {
+    resp = await fetch(cfg.baseUrl + '/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
+      body: JSON.stringify(body)
+    });
+  } catch(e) {
+    throw new Error('网络请求失败（检查网络或接口地址是否支持浏览器直连）');
+  }
+  if (!resp.ok) {
+    let msg = 'HTTP ' + resp.status;
+    try { const j = await resp.json(); msg += ' ' + ((j.error && j.error.message) || ''); } catch(e) {}
+    throw new Error(msg);
+  }
+  return await resp.json();
+}
+
+// AI 识别课表截图（自配密钥路径，先压缩图片提速）
+async function aiRecognizeSchedule(imageDataUrl) {
+  const compressed = await compressImageForAi(imageDataUrl, 1400, 0.82);
+  const messages = [{
+    role: 'user',
+    content: [
+      { type: 'text', text: AI_OCR_PROMPT },
+      { type: 'image_url', image_url: { url: compressed } }
+    ]
+  }];
+  const res = await aiChatCompletion(messages, true);
+  const content = (res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content) || '';
+  const parsed = extractAiJson(content);
+  if (!parsed || !Array.isArray(parsed.courses)) throw new Error('AI 返回内容无法解析为课程数据');
+  return normalizeAiCourses(parsed.courses);
+}
+
+// ===== 服务器中转识别（Supabase Edge Function，零配置）=====
+async function serverRecognizeSchedule(imageDataUrl) {
+  const compressed = await compressImageForAi(imageDataUrl, 1400, 0.82);
+  let resp;
+  try {
+    resp = await fetch(SUPABASE_URL + '/functions/v1/ai-recognize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'x-device-id': getDeviceId()
+      },
+      body: JSON.stringify({ image: compressed })
+    });
+  } catch(e) {
+    throw new Error('网络请求失败');
+  }
+  let data = null;
+  try { data = await resp.json(); } catch(e) {}
+  if (!resp.ok) {
+    const err = new Error((data && data.message) || ('服务异常 HTTP ' + resp.status));
+    err.friendly = true;
+    if (data && data.error === 'rate_limited') err.friendly = true;
+    throw err;
+  }
+  if (!data || !Array.isArray(data.courses)) throw new Error('AI 返回内容无法解析为课程数据');
+  return normalizeAiCourses(data.courses);
+}
+
+// 稳定设备号（限流用，localStorage）
+function getDeviceId() {
+  let id = null;
+  try { id = localStorage.getItem('device_id'); } catch(e) {}
+  if (id) return id;
+  id = 'dev-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+  try { localStorage.setItem('device_id', id); } catch(e) {}
+  return id;
+}
+
+// AI 识别图片压缩（长边≤1400、JPEG 82%），减小传输与加速识别
+function compressImageForAi(dataUrl, maxSide, quality) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        let w = img.width, h = img.height;
+        const scale = Math.min(1, maxSide / Math.max(w, h));
+        w = Math.round(w * scale); h = Math.round(h * scale);
+        if (scale >= 1 && dataUrl.length < 400 * 1024) { resolve(dataUrl); return; } // 已足够小
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); // PNG 透明底转白
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality || 0.82));
+      } catch(e) { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// AI 结果落地（公共出口：进度条完成 + 渲染确认页）
+function applyAiResult(courses, sourceLabel) {
+  const progressBar = document.getElementById('ocrProgressBar');
+  progressBar.style.width = '100%';
+  ocrCourses = courses;
+  document.getElementById('ocrRawText').textContent = '（' + (sourceLabel || 'AI') + '识别：' + courses.length + ' 条结构化结果，无原始文本）';
+  setTimeout(() => {
+    document.getElementById('ocrLoading').style.display = 'none';
+    document.getElementById('ocrResultsArea').style.display = 'block';
+    document.getElementById('ocrActions').style.display = 'flex';
+    renderOcrResults();
+  }, 300);
+}
+
+// 从 AI 回复中提取 JSON（容错：```json 代码块 / 首尾大括号）
+function extractAiJson(text) {
+  if (!text) return null;
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fence ? fence[1] : text;
+  const s = raw.indexOf('{');
+  const e = raw.lastIndexOf('}');
+  if (s < 0 || e <= s) return null;
+  try { return JSON.parse(raw.substring(s, e + 1)); } catch(err) { return null; }
+}
+
+// 解析周次文本为数字数组（"1-16" / "1,3,5" / "单周" / "双周"）
+function parseWeeksText(text, totalWeeks) {
+  const tw = totalWeeks || 16;
+  if (!text) return [];
+  const t = String(text).replace(/\s/g, '');
+  if (/单周/.test(t)) return Array.from({length: Math.ceil(tw/2)}, (_, i) => i * 2 + 1);
+  if (/双周/.test(t)) return Array.from({length: Math.floor(tw/2)}, (_, i) => (i + 1) * 2);
+  const m = t.match(/[\d]+(?:[-,，、到~][\d]+)*/);
+  if (!m) return [];
+  const out = [];
+  m[0].split(/[,，、]/).forEach(part => {
+    const rm = part.match(/^(\d+)[-到~](\d+)$/);
+    if (rm) { for (let i = parseInt(rm[1]); i <= parseInt(rm[2]); i++) out.push(i); }
+    else if (/^\d+$/.test(part)) out.push(parseInt(part));
+  });
+  return [...new Set(out)].filter(w => w >= 1 && w <= tw).sort((a, b) => a - b);
+}
+
+// 归一化 AI 返回的课程数据 + 疑惑检测
+function normalizeAiCourses(rawCourses) {
+  const totalWeeks = appData.settings.totalWeeks || 16;
+  const out = [];
+  rawCourses.forEach(rc => {
+    const c = {
+      name: (rc.name || '').trim(),
+      teacher: (rc.teacher || '').trim(),
+      location: (rc.location || '').trim(),
+      day: parseInt(rc.day) || 0,
+      startSlot: parseInt(rc.startSlot) || 0,
+      endSlot: parseInt(rc.endSlot) || 0,
+      weeks: Array.isArray(rc.weeks) ? rc.weeks.filter(w => w >= 1 && w <= totalWeeks) : [],
+      weeksText: (rc.weeksText || '').trim(),
+      issues: [],           // 疑惑提示（本地+AI 合并）
+      splitNote: (rc.splitNote || '').trim(),
+      checked: true
+    };
+    // location 清洗：模型偶尔把课程编码/周次塞进地点，剥掉它们
+    if (c.location) {
+      const cleaned = c.location
+        .replace(/\([A-Z]{2,5}[\dA-Z]*\)/g, '')   // (CMA111212)
+        .replace(/\[[\d,，\-~\s]*\]/g, '')          // [1-16] [1,3,5]
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      if (cleaned !== c.location) c.location = cleaned;
+    }
+    // 教师字段同样清洗工号外的杂物
+    if (c.teacher) {
+      const t = c.teacher.replace(/\[[\d,，\-~\s]*\]/g, '').replace(/\s{2,}/g, ' ').trim();
+      if (t !== c.teacher) c.teacher = t;
+    }
+    if (!c.weeks.length) c.weeks = parseWeeksText(c.weeksText, totalWeeks);
+    if (rc.uncertain && rc.uncertainReason) c.issues.push('AI 不确定：' + rc.uncertainReason);
+    if (c.splitNote) c.issues.push('分段排课：' + c.splitNote);
+    out.push(c);
+  });
+  // 本地启发式疑惑检测（双保险，不依赖 AI 自报）
+  const bySlot = {};
+  out.forEach(c => { if (c.day && c.startSlot) { const k = c.day + '-' + c.startSlot; (bySlot[k] = bySlot[k] || []).push(c); } });
+  Object.values(bySlot).forEach(group => {
+    if (group.length > 1) {
+      group.forEach(c => {
+        if (!c.issues.some(i => i.indexOf('分段排课') === 0)) {
+          c.issues.push('同时间检测到 ' + group.length + ' 门课程（' + group.map(g => g.name || '未命名').join(' / ') + '），请确认是否分段/交错排课');
+        }
+      });
+    }
+  });
+  out.forEach(c => {
+    if (c.teacher && /[\/、,，]/.test(c.teacher) && !c.issues.some(i => i.indexOf('多位教师') >= 0)) {
+      c.issues.push('多位教师：' + c.teacher + '，请确认是否分段授课');
+    }
+    if (!c.weeks.length) c.issues.push('周次未识别，当前默认全部周次，请确认');
+  });
+  return out;
+}
+
+
+
 /* ========== OCR 截图导入功能 ========== */
-let ocrCourses = []; // OCR 识别出的课程列表
+let ocrCourses = []; // OCR/AI 识别出的课程列表（待确认）
 let tesseractLoaded = false;
 
 // 打开 OCR 导入弹窗
@@ -3234,11 +3624,40 @@ function handleOcrImage(event) {
   reader.readAsDataURL(file);
 }
 
-// 运行 OCR 识别（增强版：多策略 + 多遍重试）
+// 运行 OCR 识别（v1.2：自配密钥 AI → 服务器中转 AI → 离线 OCR 三级回退）
 async function runOcr(imageDataUrl) {
   const loadingText = document.getElementById('ocrLoadingText');
   const progressBar = document.getElementById('ocrProgressBar');
 
+  // 级别1：用户自配密钥直连 AI
+  if (isAiOcrReady()) {
+    try {
+      loadingText.textContent = 'AI 视觉识别中（自配接口，约 1-2 分钟）...';
+      progressBar.style.width = '30%';
+      const courses = await aiRecognizeSchedule(imageDataUrl);
+      return applyAiResult(courses, '自配接口');
+    } catch(err) {
+      console.warn('自配 AI 识别失败，尝试服务器中转:', err);
+    }
+  }
+
+  // 级别2：服务器中转（Supabase Edge Function，零配置，每设备每日限流）
+  if (navigator.onLine && location.protocol !== 'file:') {
+    try {
+      loadingText.textContent = 'AI 视觉识别中（服务器中转，约 1-2 分钟，请勿关闭弹窗）...';
+      progressBar.style.width = '30%';
+      const courses = await serverRecognizeSchedule(imageDataUrl);
+      return applyAiResult(courses, '服务器');
+    } catch(err) {
+      console.warn('服务器中转失败，回退离线 OCR:', err);
+      if (err && err.friendly) {
+        loadingText.textContent = err.message + '，尝试离线识别...';
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  }
+
+  // 级别3：离线 Tesseract OCR（现状保留）
   try {
     // 动态加载 Tesseract.js
     if (typeof Tesseract === 'undefined') {
@@ -3265,11 +3684,22 @@ async function runOcr(imageDataUrl) {
       logger: function(m) {
         if (m.status === 'recognizing text') {
           progressBar.style.width = (25 + m.progress * 55) + '%';
-          loadingText.textContent = '正在识别文字（第 1 遍）... ' + Math.round(m.progress * 100) + '%';
+          loadingText.textContent = '正在识别文字... ' + Math.round(m.progress * 100) + '%';
         }
-    }
-  });
+      }
+    });
 
+    // 第一步先用稀疏模式识别（适合网格课表分散文字）
+    await worker.setParameters({ tessedit_pageseg_mode: String(PSM_SPARSE) });
+    let finalData = (await worker.recognize(processedImage)).data;
+    // 稀疏模式文字太少时，用块模式再识别一遍，取文字更多的结果
+    const textLen = d => (d && d.text ? d.text.replace(/\s/g, '').length : 0);
+    if (textLen(finalData) < 10) {
+      loadingText.textContent = '正在识别文字（换用整块模式）...';
+      await worker.setParameters({ tessedit_pageseg_mode: String(PSM_BLOCK) });
+      const blockData = (await worker.recognize(processedImage)).data;
+      if (textLen(blockData) > textLen(finalData)) finalData = blockData;
+    }
     await worker.terminate();
 
     progressBar.style.width = '92%';
@@ -4498,9 +4928,10 @@ function renderOcrResults() {
 
   const complete = ocrCourses.filter(c => !c._incomplete).length;
   const incomplete = ocrCourses.length - complete;
+  const hasIssues = ocrCourses.filter(c => c.issues && c.issues.length).length;
 
   summary.innerHTML = `
-    <div class="stat">识别到 <strong>${ocrCourses.length}</strong> 门课程 · <strong style="color:var(--success)">${complete}</strong> 门完整 · <strong style="color:var(--warning)">${incomplete}</strong> 门待补全</div>
+    <div class="stat">识别到 <strong>${ocrCourses.length}</strong> 门课程 · <strong style="color:var(--success)">${complete}</strong> 门完整 · <strong style="color:var(--warning)">${incomplete}</strong> 门待补全${hasIssues ? ` · <strong style="color:#B8860B;">${hasIssues} 门有疑问需确认</strong>` : ''}</div>
   `;
 
   container.innerHTML = ocrCourses.map((c, idx) => {
@@ -4511,13 +4942,21 @@ function renderOcrResults() {
     if (!c.endSlot) incompleteFields.push('结束节次');
 
     const isIncomplete = incompleteFields.length > 0;
+    const totalWeeks = appData.settings.totalWeeks || 16;
+    const weeksSummary = (c.weeks && c.weeks.length === totalWeeks) ? '全部' : weeksToText(c.weeks || [], totalWeeks);
+    const weekChips = [
+      { label: '全部', weeks: Array.from({length: totalWeeks}, (_, i) => i + 1) },
+      { label: '单周', weeks: Array.from({length: Math.ceil(totalWeeks/2)}, (_, i) => i * 2 + 1) },
+      { label: '双周', weeks: Array.from({length: Math.floor(totalWeeks/2)}, (_, i) => (i + 1) * 2) }
+    ];
 
     return `
       <div class="ocr-result-item ${isIncomplete ? 'incomplete' : ''}" data-idx="${idx}">
         <div class="ori-header">
-          <div class="ori-index">课程 ${idx + 1}</div>
+          <div class="ori-index"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" ${c.checked === false ? '' : 'checked'} onchange="toggleOcrCourseImport(${idx}, this.checked)">课程 ${idx + 1}</label></div>
           ${isIncomplete ? `<div class="ori-warning">⚠️ ${incompleteFields.join('、')}待填写</div>` : '<div style="font-size:12px;color:var(--success);">✓ 信息完整</div>'}
         </div>
+        ${c.issues && c.issues.length ? `<div class="ori-issue"><span>❓</span><div>${c.issues.map(i => escapeHtml(i)).join('<br>')}</div></div>` : ''}
         <div class="ori-fields">
           <div class="ori-field ori-field-full">
             <div class="ori-label">课程名称</div>
@@ -4559,12 +4998,41 @@ function renderOcrResults() {
             <input class="ori-input" type="text" value="${escapeHtml(c.teacher || '')}" placeholder="如：张老师" oninput="updateOcrCourse(${idx}, 'teacher', this.value)">
           </div>
         </div>
+        <div class="ori-field ori-field-full" style="margin-top:4px;">
+          <div class="ori-label">上课周次（当前：${escapeHtml(weeksSummary || '未设置')}）</div>
+          <div class="ori-weeks-row">
+            ${weekChips.map(wc => `<span class="ori-weeks-chip ${JSON.stringify(c.weeks||[])===JSON.stringify(wc.weeks) ? 'active' : ''}" onclick="setOcrCourseWeeks(${idx}, ${JSON.stringify(wc.weeks).replace(/"/g, '&quot;')})">${wc.label}</span>`).join('')}
+            <input class="ori-custom-weeks" type="text" placeholder="自定义，如 1-8,11,13" value="${escapeHtml((c.weeks && c.weeks.length && !(c.weeks.length===totalWeeks)) ? weeksSummary : '')}" onchange="setOcrCourseWeeksText(${idx}, this.value)">
+          </div>
+        </div>
         <div class="ori-actions">
           <button class="del-btn" onclick="removeOcrCourse(${idx})">删除此条</button>
         </div>
       </div>
     `;
   }).join('');
+}
+
+// 勾选/取消导入
+function toggleOcrCourseImport(idx, checked) {
+  if (ocrCourses[idx]) { ocrCourses[idx].checked = checked; }
+}
+
+// 快捷设置周次（全部/单周/双周）
+function setOcrCourseWeeks(idx, weeks) {
+  if (!ocrCourses[idx]) return;
+  ocrCourses[idx].weeks = weeks;
+  renderOcrResults();
+}
+
+// 自定义周次文本解析
+function setOcrCourseWeeksText(idx, text) {
+  if (!ocrCourses[idx]) return;
+  const weeks = parseWeeksText(text, appData.settings.totalWeeks || 16);
+  if (text.trim() && !weeks.length) { showToast('周次格式无法解析，支持如 1-8,11,13 或 单周/双周'); return; }
+  ocrCourses[idx].weeks = weeks;
+  renderOcrResults();
+  if (weeks.length) showToast('周次已更新');
 }
 
 // 更新 OCR 课程的某个字段
@@ -4597,8 +5065,11 @@ function confirmOcrImport() {
 
   let imported = 0;
   let skipped = 0;
+  let unchecked = 0;
 
   for (const c of ocrCourses) {
+    // 未勾选的跳过
+    if (c.checked === false) { unchecked++; continue; }
     // 必须有星期和节次信息才导入，课程名可以后续填写
     if (!c.day || !c.startSlot || !c.endSlot) {
       skipped++;
@@ -4622,10 +5093,14 @@ function confirmOcrImport() {
   closeModal('modalOcr');
 
   if (imported > 0) {
-    showToast(`成功导入 ${imported} 个课程位置${skipped > 0 ? `，${skipped} 个信息不全已跳过` : ''}，请点击课表中的课程填写详细信息`);
+    let tip = `成功导入 ${imported} 门课程`;
+    if (skipped > 0) tip += `，${skipped} 门信息不全已跳过`;
+    if (unchecked > 0) tip += `，${unchecked} 门未勾选已忽略`;
+    showToast(tip);
     renderSchedule();
+    if (currentView !== 'schedule') switchView('schedule');
   } else {
-    showToast('没有有效的课程位置可导入');
+    showToast('没有有效的课程可导入（请检查勾选与星期/节次信息）');
   }
 }
 
