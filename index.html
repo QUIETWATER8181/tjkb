@@ -447,6 +447,17 @@ ul { list-style: none; }
 #view-schedule .sg-handle-bottom {
   touch-action: none;
 }
+/* 拖拽进行中：全局封锁一切文本选择（JS 动态给 body 加此类） */
+body.drag-locking {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+body.drag-locking * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
 .schedule-week-label .week-text { font-size: 16px; font-weight: 700; }
 .schedule-week-label .week-nav { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .schedule-week-label .week-nav button {
@@ -2704,16 +2715,16 @@ function renderSchedule() {
         var bgColor = course.color || COURSE_COLORS[0];
         var textColor = COURSE_TEXT_COLORS[colorIdx] || '#333';
         var cName = escapeHtml(course.name || '待填写');
-        var cLoc = course.location ? `<div class="sg-c-loc">${escapeHtml(course.location)}</div>` : '';
-        var cTeacher = course.teacher ? `<div class="sg-c-teacher">${escapeHtml(course.teacher)}</div>` : '';
+        var cLoc = course.location ? `<div class="sg-c-loc" style="-webkit-user-select:none;user-select:none;-webkit-touch-callout:none">${escapeHtml(course.location)}</div>` : '';
+        var cTeacher = course.teacher ? `<div class="sg-c-teacher" style="-webkit-user-select:none;user-select:none;-webkit-touch-callout:none">${escapeHtml(course.teacher)}</div>` : '';
         // 单节课时显示紧凑一点
         if (course.endSlot === course.startSlot) {
           cTeacher = '';
         }
         html += `<div class="sg-cell has-course" style="grid-column:${d+1};grid-row:${rowStart}/${rowEnd};" data-day="${d}" data-slot="${course.startSlot}">
-          <div class="sg-course" style="background:${bgColor};color:${textColor}" data-cid="${course.id}">
+          <div class="sg-course" style="background:${bgColor};color:${textColor};-webkit-user-select:none;user-select:none;-webkit-touch-callout:none" data-cid="${course.id}" onselectstart="return false">
             <div class="sg-handle-top"></div>
-            <div class="sg-c-name">${cName}</div>
+            <div class="sg-c-name" style="-webkit-user-select:none;user-select:none;-webkit-touch-callout:none">${cName}</div>
             ${cLoc}
             ${cTeacher}
             <div class="sg-handle-bottom"></div>
@@ -5376,6 +5387,7 @@ function bindScheduleInteractions() {
       dragState.pressTimer = setTimeout(function() {
         dragState.longPressed = true;
         dragState.mode = 'move';
+        document.body.classList.add('drag-locking'); // 全局封锁文本选择（拖拽期间）
         dragState.courseEl = courseEl;
         // 原方块变淡，加放大脉冲提示拖拽开始
         courseEl.classList.add('dragging');
@@ -5462,6 +5474,7 @@ function bindScheduleInteractions() {
       dragState.pressTimer = setTimeout(function() {
         dragState.longPressed = true;
         dragState.mode = 'break-move';
+        document.body.classList.add('drag-locking'); // 拖拽期间封锁文本选择
         dragState.breakLabel = breakLabel;
         dragState.breakAfterSlot = afterSlot;
         breakEl.classList.add('dragging');
@@ -5540,6 +5553,7 @@ function bindGlobalScheduleEvents() {
       clearTimeout(dragState.pressTimer);
       dragState.pressTimer = null;
     }
+    document.body.classList.remove('drag-locking'); // 解锁文本选择
 
     if (dragState.mode === 'move' && dragState.longPressed) {
       // 长按拖拽结束：移动课程到目标格子
@@ -5639,6 +5653,7 @@ function bindGlobalScheduleEvents() {
     dragState.pressTimer = setTimeout(function() {
       dragState.longPressed = true;
       dragState.mode = 'move';
+      document.body.classList.add('drag-locking'); // 全局封锁文本选择（拖拽期间）
       dragState.courseEl = courseEl;
       courseEl.classList.add('dragging');
       courseEl.classList.add('dragging-pulse');
@@ -5656,6 +5671,7 @@ function bindGlobalScheduleEvents() {
   document.addEventListener('touchmove', function(e) {
     if (!dragState.mode || !dragState.longPressed) return;
     e.preventDefault();
+    if (!document.body.classList.contains('drag-locking')) document.body.classList.add('drag-locking');
     var touch = e.touches[0];
     dragState.moved = true;
     if (dragState.floatEl) {
@@ -5677,6 +5693,7 @@ function bindGlobalScheduleEvents() {
       clearTimeout(dragState.pressTimer);
       dragState.pressTimer = null;
     }
+    document.body.classList.remove('drag-locking'); // 解锁文本选择
     if (dragState.mode === 'move' && dragState.longPressed) {
       var touch = e.changedTouches[0];
       var targetCell = getCellAtPoint(touch.clientX, touch.clientY);
