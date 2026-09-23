@@ -1,5 +1,5 @@
 ﻿/* 课表提醒助手 Service Worker */
-const CACHE_NAME = 'tjkb-v5';
+const CACHE_NAME = 'tjkb-v6';
 const CORE_ASSETS = [
   './',
   './index.html',
