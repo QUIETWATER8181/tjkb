@@ -5625,6 +5625,56 @@ function bindGlobalScheduleEvents() {
     }
   });
 
+  // ===== 课表视图防误选兜底（第四轮：JS 事件级封锁，不依赖 CSS 遵守度）=====
+  // 根因：drag-locking 仅在课程方块长按触发拖拽后才添加，长按表头/节次/时间/
+  //       空白格/周导航等非课程区域时无任何 JS 锁；部分安卓 WebView 对 CSS
+  //       user-select 不完全遵守，导致系统仍发起文本选择（复制/翻译菜单）。
+  //       另：内联 onselectstart/oncontextmenu 在部分 WebView 上触发不可靠，
+  //       需在 document 级 capture 阶段用 addEventListener 兜底。
+  var _touchLockTimer = null;
+  function _isEditableTarget(el) {
+    return !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]'));
+  }
+  // 触摸期间：课表视图一律全局封锁（不等长按检测，覆盖网格所有区域）
+  document.addEventListener('touchstart', function(e) {
+    if (currentView !== 'schedule' || _isEditableTarget(e.target)) return;
+    if (_touchLockTimer) { clearTimeout(_touchLockTimer); _touchLockTimer = null; }
+    document.body.classList.add('drag-locking');
+  }, true);
+  ['touchend', 'touchcancel'].forEach(function(ev) {
+    document.addEventListener(ev, function() {
+      if (currentView !== 'schedule') return;
+      if (_touchLockTimer) clearTimeout(_touchLockTimer);
+      _touchLockTimer = setTimeout(function() {
+        _touchLockTimer = null;
+        // 拖拽进行中则保持锁定（由拖拽逻辑自行管理解锁）
+        if (!dragState || !dragState.mode) document.body.classList.remove('drag-locking');
+      }, 150);
+    }, true);
+  });
+  // selectstart：capture 阶段拦截，从事件层面阻止选择发起
+  document.addEventListener('selectstart', function(e) {
+    if (currentView !== 'schedule' || _isEditableTarget(e.target)) return;
+    e.preventDefault();
+  }, true);
+  // contextmenu：capture 阶段拦截，阻止长按呼出系统菜单
+  document.addEventListener('contextmenu', function(e) {
+    if (currentView !== 'schedule' || _isEditableTarget(e.target)) return;
+    e.preventDefault();
+  }, true);
+  // selectionchange：终极兜底——系统若已发起选择则立即清除（仅限课表视图内的选区，
+  // 弹窗 overlay / input / textarea 不在 #view-schedule 内，不受影响）
+  document.addEventListener('selectionchange', function() {
+    if (currentView !== 'schedule') return;
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    var node = sel.anchorNode;
+    if (!node) return;
+    var el = node.nodeType === 1 ? node : node.parentElement;
+    if (!el || _isEditableTarget(el)) return;
+    if (el.closest && el.closest('#view-schedule')) sel.removeAllRanges();
+  });
+
   // 触摸事件支持（移动端长按拖拽）
   document.addEventListener('touchstart', function(e) {
     var touch = e.touches[0];
