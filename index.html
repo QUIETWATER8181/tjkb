@@ -263,6 +263,35 @@ ul { list-style: none; }
   user-select: none; -webkit-user-select: none;
 }
 .post-del-btn:hover { color: var(--accent); }
+/* ===== 管理员系统样式 ===== */
+.post-admin-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.admin-btn {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--card); color: var(--text-secondary);
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+}
+.admin-btn:active { opacity: .7; }
+.admin-btn.danger { color: var(--accent); border-color: var(--accent); }
+.admin-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+.post-badge { font-size: 10px; padding: 1px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.post-badge.pinned { background: #FFF3CD; color: #856404; }
+.post-badge.shielded { background: #F8D7DA; color: #721C24; }
+.post-badge.announce { background: var(--primary-light); color: var(--primary); }
+.post-card.shielded-post { opacity: .55; }
+.post-card.announce-card { border: 2px solid var(--primary); }
+.comment-item.shielded-comment .c-text { opacity: .5; text-decoration: line-through; }
+.ban-status-banner {
+  background: #F8D7DA; color: #721C24; border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 13px; margin-bottom: 10px; text-align: center;
+}
+.settings-section .banned-user-row {
+  display: flex; align-items: center; gap: 8px; padding: 10px 0;
+  border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.settings-section .banned-user-row:last-child { border-bottom: none; }
+.settings-section .banned-user-info { flex: 1; min-width: 0; }
+.settings-section .banned-user-nick { font-weight: 600; }
+.settings-section .banned-user-meta { font-size: 11px; color: var(--text-light); margin-top: 2px; }
 .post-content { font-size: 14px; line-height: 1.7; word-break: break-word; margin-bottom: 10px; }
 .post-actions { display: flex; gap: 18px; border-top: 1px solid var(--border); padding-top: 10px; }
 .post-action-btn {
@@ -1166,6 +1195,7 @@ body.drag-locking * {
       <div class="filter-chip" data-cfilter="提问" onclick="filterCommunity('提问')">提问</div>
       <div class="filter-chip" data-cfilter="找搭子" onclick="filterCommunity('找搭子')">找搭子</div>
       <div class="filter-chip" data-cfilter="吐槽" onclick="filterCommunity('吐槽')">吐槽</div>
+      <div class="filter-chip" data-cfilter="公告" onclick="filterCommunity('公告')" style="color:var(--primary);font-weight:700;">📢 公告</div>
     </div>
     <button class="community-refresh" id="communityRefresh" onclick="loadCommunityPosts(true)" title="刷新">🔄</button>
   </div>
@@ -1174,6 +1204,7 @@ body.drag-locking * {
     <div style="display:flex;gap:6px;">
       <button class="community-nick-btn" onclick="openCustomName()">自拟昵称</button>
       <button class="community-nick-btn" onclick="changeNickname()">换随机</button>
+      <button class="community-nick-btn" id="adminAnnounceBtn" style="display:none;background:var(--primary);color:#fff;" onclick="openAnnounceModal()">📢 发公告</button>
     </div>
   </div>
   <div id="communityList"></div>
@@ -1234,6 +1265,60 @@ body.drag-locking * {
     <div style="display:flex;gap:10px;">
       <button class="btn-primary" style="flex:1;background:#fff;color:var(--text);border:1px solid var(--border);" onclick="closeModal('modalDeleteConfirm')">取消</button>
       <button class="btn-primary" style="flex:1;background:var(--accent);" onclick="confirmDeleteTarget()">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 管理员：封禁用户弹窗 ========== -->
+<div class="modal-overlay" id="modalBan">
+  <div class="modal-content" style="max-width:360px;">
+    <div class="modal-header">
+      <h2>封禁用户</h2>
+      <button class="modal-close" onclick="closeModal('modalBan')">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">目标：<span id="banTargetNick" style="font-weight:600;color:var(--text);"></span></p>
+    <div class="form-group">
+      <label class="form-label">封禁时长</label>
+      <div id="banDurationPicker" style="display:flex;flex-wrap:wrap;gap:6px;">
+        <span class="pc-chip" data-bdur="1min" onclick="selectBanDur('1min')">1分钟</span>
+        <span class="pc-chip" data-bdur="30min" onclick="selectBanDur('30min')">30分钟</span>
+        <span class="pc-chip" data-bdur="2h" onclick="selectBanDur('2h')">2小时</span>
+        <span class="pc-chip" data-bdur="12h" onclick="selectBanDur('12h')">12小时</span>
+        <span class="pc-chip" data-bdur="24h" onclick="selectBanDur('24h')">1天</span>
+        <span class="pc-chip" data-bdur="3d" onclick="selectBanDur('3d')">3天</span>
+        <span class="pc-chip" data-bdur="7d" onclick="selectBanDur('7d')">7天</span>
+        <span class="pc-chip" data-bdur="30d" onclick="selectBanDur('30d')">30天</span>
+        <span class="pc-chip" data-bdur="6mo" onclick="selectBanDur('6mo')">六个月</span>
+        <span class="pc-chip" data-bdur="1yr" onclick="selectBanDur('1yr')">一年</span>
+        <span class="pc-chip" data-bdur="permanent" onclick="selectBanDur('permanent')" style="color:var(--accent);">永久</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">封禁原因（可选，用户可见）</label>
+      <input class="form-input" id="banReason" maxlength="100" placeholder="例：发布不当内容" style="padding:12px;border-radius:10px;" />
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-primary" style="flex:1;background:#fff;color:var(--text);border:1px solid var(--border);" onclick="closeModal('modalBan')">取消</button>
+      <button class="btn-primary" style="flex:1;background:var(--accent);" onclick="confirmBanUser()">确认封禁</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 管理员：发布公告弹窗 ========== -->
+<div class="modal-overlay" id="modalAnnounce">
+  <div class="modal-content" style="max-width:360px;">
+    <div class="modal-header">
+      <h2>发布公告</h2>
+      <button class="modal-close" onclick="closeModal('modalAnnounce')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">新公告会自动置顶并取代旧公告（旧公告保留但不再置顶）。用户可对公告点赞或评论。</p>
+    <div class="form-group">
+      <label class="form-label">公告内容<span id="announceCharCount" style="float:right;font-weight:400;color:var(--text-light);"></span></label>
+      <textarea class="form-textarea" id="announceContent" rows="5" maxlength="500" placeholder="输入公告内容（500字以内）" oninput="updateAnnounceCharCount()"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-primary" style="flex:1;background:#fff;color:var(--text);border:1px solid var(--border);" onclick="closeModal('modalAnnounce')">取消</button>
+      <button class="btn-primary" style="flex:1;" onclick="submitAnnouncement()">发布</button>
     </div>
   </div>
 </div>
@@ -1299,6 +1384,15 @@ body.drag-locking * {
         <button class="notify-perm-btn" id="aiOcrTestBtn" style="background:var(--success);margin-top:2px;" onclick="testAiOcrConfig()">测试连接</button>
       </div>
       <div id="aiOcrState" style="font-size:12px;color:var(--text-secondary);margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <div class="settings-group" id="settingsBannedSection" style="display:none;">
+    <div class="sg-label">👮 小黑屋（管理员）</div>
+    <div class="settings-section">
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">集中管理被封禁的用户，到期自动解封，也可手动提前解封。</div>
+      <div id="bannedUserList"></div>
+      <button class="notify-perm-btn" style="margin-top:8px;" onclick="renderBannedUsers()">刷新列表</button>
     </div>
   </div>
 
@@ -1585,6 +1679,58 @@ const TOTAL_SLOTS = 11; // 每天最多11节课（无第12节）
 // ===== 帖子广场云后端配置（Supabase，publishable key 设计为可公开） =====
 const SUPABASE_URL = 'https://egwuciyieaqvavhfpzbc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_xY_Ja3dTnie9ko04Y495cA_yg4mWd7e';
+// ===== 管理员系统（本地服务探测：admin-service.js 监听 127.0.0.1:39871）=====
+const ADMIN_SERVICE_URL = 'http://127.0.0.1:39871/verify';
+const ADMIN_SESSION_KEY = 'admin_session';
+const ADMIN_SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 天
+let isAdmin = false;
+let adminKey = null;
+
+// 探测本地管理员服务并验证密钥（启动时调用）
+async function checkAdminStatus() {
+  // 1. 已有有效会话则直接恢复
+  try {
+    const session = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null');
+    if (session && session.key && session.expires > Date.now()) {
+      // 向服务端确认密钥仍有效（防止 SQL 中密钥被更换）
+      const verify = await sbRest('rpc/admin_op', 'POST', { p_admin_key: session.key, p_action: 'verify' });
+      if (verify.ok && verify.data && verify.data.ok) {
+        isAdmin = true;
+        adminKey = session.key;
+        return;
+      }
+      // 密钥已失效，清除会话
+      localStorage.removeItem(ADMIN_SESSION_KEY);
+    }
+  } catch(e) {}
+  // 2. 无有效会话 → 探测本地服务
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(ADMIN_SERVICE_URL, { signal: controller.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.key) {
+        const verify = await sbRest('rpc/admin_op', 'POST', { p_admin_key: data.key, p_action: 'verify' });
+        if (verify.ok && verify.data && verify.data.ok) {
+          isAdmin = true;
+          adminKey = data.key;
+          localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ key: data.key, expires: Date.now() + ADMIN_SESSION_DURATION }));
+          if (typeof renderCommunityMe === 'function') renderCommunityMe();
+        }
+      }
+    }
+  } catch(e) { /* 本地服务未运行 = 非管理员，静默 */ }
+}
+
+// 管理员操作统一入口（走 RPC 验证）
+async function adminOp(action, extra) {
+  if (!isAdmin || !adminKey) return { ok: false, error: 'not_admin' };
+  const body = Object.assign({ p_admin_key: adminKey, p_action: action }, extra || {});
+  return await sbRest('rpc/admin_op', 'POST', body);
+}
+
 const TIME_SLOTS = [
   { start: '08:00', end: '08:45' },
   { start: '08:50', end: '09:35' },
@@ -1988,8 +2134,11 @@ function renderCommunityMe() {
   const el = document.getElementById('communityMyNick');
   if (el) {
     const id = getIdentity();
-    el.textContent = '我的昵称：' + id.nickname + (id.customName ? '（自定义）' : '（随机）');
+    el.textContent = '我的昵称：' + id.nickname + (id.customName ? '（自定义）' : '（随机）') + (isAdmin ? ' 👑' : '');
+    el.title = isAdmin ? '管理员模式' : '';
   }
+  const announceBtn = document.getElementById('adminAnnounceBtn');
+  if (announceBtn) announceBtn.style.display = isAdmin ? '' : 'none';
 }
 
 // 稳定哈希（头像颜色用）
@@ -2089,13 +2238,31 @@ function timeAgo(iso) {
   return (d.getMonth() + 1) + '月' + d.getDate() + '日';
 }
 
+// 置顶有效期（7 天），过期自动视为未置顶
+const PIN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+function isPinActive(p) {
+  return p && p.is_pinned && p.pinned_at && (Date.now() - new Date(p.pinned_at).getTime()) < PIN_DURATION_MS;
+}
+
 // 渲染帖子列表
 function renderCommunity() {
   const container = document.getElementById('communityList');
   if (!container) return;
   const me = getIdentity();
-  let list = communityPosts;
+  // 屏蔽过滤：非管理员看不到被屏蔽帖（发布者本人可见）
+  let list = communityPosts.filter(p => isAdmin || !p.is_hidden || p.user_id === me.userId);
   if (communityFilter !== '全部') list = list.filter(p => p.category === communityFilter);
+  // 排序：最新公告 > 有效置顶 > 按时间倒序
+  const newestAnnounce = communityPosts.filter(p => p.category === '公告').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  list.sort((a, b) => {
+    const aAnn = (communityFilter === '全部' || communityFilter === '公告') && newestAnnounce && a.id === newestAnnounce.id ? 1 : 0;
+    const bAnn = (communityFilter === '全部' || communityFilter === '公告') && newestAnnounce && b.id === newestAnnounce.id ? 1 : 0;
+    if (aAnn !== bAnn) return bAnn - aAnn;
+    const aPin = isPinActive(a) ? 1 : 0;
+    const bPin = isPinActive(b) ? 1 : 0;
+    if (aPin !== bPin) return bPin - aPin;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 
   if (!list.length) {
     container.innerHTML = '<div class="empty-state"><div class="emoji">💬</div><div class="text">' +
@@ -2103,14 +2270,38 @@ function renderCommunity() {
     return;
   }
 
+  // 管理员发公告按钮
+  const announceBtn = document.getElementById('adminAnnounceBtn');
+  if (announceBtn) announceBtn.style.display = isAdmin ? '' : 'none';
+
   container.innerHTML = list.map(p => {
     const st = communityStats[p.id] || { like_count: 0, comment_count: 0 };
     const liked = communityMyLikes[p.id] ? 'liked' : '';
     const isMine = p.user_id === me.userId;
+    const isAnnounce = p.category === '公告';
+    const pinActive = isPinActive(p);
     const avatarBg = AVATAR_COLORS[hashStr(p.nickname || '') % AVATAR_COLORS.length];
     const commentsHtml = expandedPostId === p.id ? renderCommentsFor(p.id) : '';
+    // 徽章
+    let badges = '';
+    if (isAnnounce && newestAnnounce && p.id === newestAnnounce.id) badges += '<span class="post-badge announce">📢 最新公告</span>';
+    if (pinActive) badges += '<span class="post-badge pinned">📌 置顶</span>';
+    if (p.is_hidden) badges += '<span class="post-badge shielded">🚫 已屏蔽</span>';
+    // 管理按钮（仅管理员可见）
+    let adminRow = '';
+    if (isAdmin) {
+      adminRow = `
+        <div class="post-admin-row">
+          <button class="admin-btn ${p.is_hidden ? 'active' : ''}" onclick="adminToggleHidePost('${p.id}')">${p.is_hidden ? '取消屏蔽' : '屏蔽'}</button>
+          <button class="admin-btn ${pinActive ? 'active' : ''}" onclick="adminTogglePinPost('${p.id}')">${pinActive ? '取消置顶' : '置顶7天'}</button>
+          <button class="admin-btn danger" onclick="adminAskDeletePost('${p.id}')">删除</button>
+          ${!isMine && !isAnnounce ? `<button class="admin-btn danger" onclick="openBanModal('${p.user_id}', '${escapeHtml((p.nickname || '').replace(/'/g, ''))}')">封禁</button>` : ''}
+        </div>`;
+    }
+    const shieldClass = p.is_hidden ? 'shielded-post' : '';
+    const annClass = isAnnounce ? 'announce-card' : '';
     return `
-      <div class="post-card" data-pid="${p.id}">
+      <div class="post-card ${shieldClass} ${annClass}" data-pid="${p.id}">
         <div class="post-head">
           <div class="post-avatar" style="background:${avatarBg}">${escapeHtml((p.nickname || '同学').slice(0, 1))}</div>
           <div class="post-meta-row">
@@ -2118,6 +2309,7 @@ function renderCommunity() {
             <div class="post-time">${timeAgo(p.created_at)}</div>
           </div>
           <div class="post-cat">${escapeHtml(p.category || '闲聊')}</div>
+          ${badges}
           ${isMine ? `<button class="post-del-btn" onclick="askDeletePost('${p.id}', event)">删除</button>` : ''}
         </div>
         <div class="post-content">${escapeHtml(p.content)}</div>
@@ -2125,6 +2317,7 @@ function renderCommunity() {
           <button class="post-action-btn ${liked}" onclick="toggleLike('${p.id}', event)">❤️ <span>${st.like_count}</span></button>
           <button class="post-action-btn" onclick="toggleComments('${p.id}', event)">💬 <span>${st.comment_count}</span></button>
         </div>
+        ${adminRow}
         ${commentsHtml}
       </div>
     `;
@@ -2134,14 +2327,25 @@ function renderCommunity() {
 // 渲染某帖评论区（含输入框）
 function renderCommentsFor(postId) {
   const me = getIdentity();
-  const list = communityComments[postId] || [];
-  const items = list.map(c => `
-    <div class="comment-item">
+  let list = communityComments[postId] || [];
+  // 屏蔽过滤：非管理员看不到被屏蔽评论（发布者本人可见）
+  list = list.filter(c => isAdmin || !c.is_hidden || c.user_id === me.userId);
+  const items = list.map(c => {
+    const shieldCls = c.is_hidden ? 'shielded-comment' : '';
+    let adminBtns = '';
+    if (isAdmin) {
+      adminBtns = `
+        <button class="admin-btn" style="font-size:9px;padding:1px 6px;" onclick="adminToggleHideComment('${c.id}', '${postId}')">${c.is_hidden ? '取消屏蔽' : '屏蔽'}</button>
+        <button class="admin-btn danger" style="font-size:9px;padding:1px 6px;" onclick="adminDeleteComment('${c.id}', '${postId}')">删</button>`;
+    }
+    return `
+    <div class="comment-item ${shieldCls}">
       <span class="c-nick">${escapeHtml(c.nickname)}</span>
       <span class="c-text">${escapeHtml(c.content)}</span>
       ${c.user_id === me.userId ? `<button class="c-del" onclick="askDeleteComment('${c.id}', '${postId}', event)">删</button>` : ''}
-    </div>
-  `).join('');
+      ${adminBtns}
+    </div>`;
+  }).join('');
   return `
     <div class="comment-area">
       ${items || '<div style="font-size:12px;color:var(--text-light);padding:4px 0;">还没有评论</div>'}
@@ -2197,15 +2401,21 @@ async function toggleComments(postId, ev) {
   }, 50);
 }
 
-// 发表评论
+// 发表评论（封禁检查 + 敏感词过滤）
 async function submitComment(postId) {
   if (!communityReady) return;
+  const ban = await checkUserBan();
+  if (ban) { showBanBanner(ban); showToast('你已被封禁，剩余 ' + ban.desc + '，无法评论'); return; }
+  hideBanBanner();
   const raw = (document.getElementById('commentInput_' + postId) || {}).value || '';
   const content = filterBadWords(raw.trim());
   if (!content) { showToast('评论内容不能为空'); return; }
   const id = getIdentity();
   const res = await sbRest('comments', 'POST', { post_id: postId, user_id: id.userId, nickname: id.nickname, content: content }, 'return=representation');
-  if (!res.ok || !res.data || !res.data.length) { showToast('评论发布失败'); return; }
+  if (!res.ok || !res.data || !res.data.length) {
+    if (res.error && res.error.includes('ERR_BANNED')) { showToast('你已被封禁，无法评论'); return; }
+    showToast('评论发布失败'); return;
+  }
   const data = res.data[0];
   if (!communityComments[postId]) communityComments[postId] = [];
   communityComments[postId].push(data);
@@ -2229,33 +2439,7 @@ function askDeleteComment(commentId, postId, ev) {
   openModal('modalDeleteConfirm');
 }
 
-// 确认删除
-async function confirmDeleteTarget() {
-  if (!communityReady || !deleteTarget) return;
-  const id = getIdentity();
-  closeModal('modalDeleteConfirm');
-  if (deleteTarget.type === 'post') {
-    const res = await sbRest('posts?id=eq.' + encodeURIComponent(deleteTarget.id) + '&user_id=eq.' + encodeURIComponent(id.userId), 'DELETE');
-    if (!res.ok) { showToast('删除失败'); return; }
-    communityPosts = communityPosts.filter(p => p.id !== deleteTarget.id);
-    delete communityStats[deleteTarget.id];
-    if (expandedPostId === deleteTarget.id) expandedPostId = null;
-    showToast('帖子已删除');
-  } else {
-    const res = await sbRest('comments?id=eq.' + encodeURIComponent(deleteTarget.id) + '&user_id=eq.' + encodeURIComponent(id.userId), 'DELETE');
-    if (!res.ok) { showToast('删除失败'); return; }
-    if (communityComments[deleteTarget.postId]) {
-      communityComments[deleteTarget.postId] = communityComments[deleteTarget.postId].filter(c => c.id !== deleteTarget.id);
-    }
-    if (communityStats[deleteTarget.postId] && communityStats[deleteTarget.postId].comment_count > 0) {
-      communityStats[deleteTarget.postId].comment_count--;
-    }
-    showToast('评论已删除');
-  }
-  renderCommunity();
-  deleteTarget = null;
-}
-
+// 确认删除（新版在管理员区块，支持 admin_post / post / comment 三种类型）
 // 发帖弹窗
 function openPostModal() {
   if (!communityReady) { showToast('当前离线，无法发帖'); return; }
@@ -2285,17 +2469,256 @@ function filterBadWords(text) {
   return out;
 }
 
-// 发布帖子
+// ============================================================
+// ===== 管理员操作（所有操作走 admin_op RPC，服务端验证密钥）=====
+// ============================================================
+let banTargetUser = null; // { userId, nickname }
+let banDurationSelected = '24h';
+
+// 帖子：屏蔽/取消屏蔽
+async function adminToggleHidePost(postId) {
+  const p = communityPosts.find(x => x.id === postId);
+  const action = p && p.is_hidden ? 'unhide_post' : 'hide_post';
+  const res = await adminOp(action, { p_id: postId });
+  if (res.ok && res.data && res.data.ok) {
+    if (p) p.is_hidden = !p.is_hidden;
+    renderCommunity();
+    showToast(p && p.is_hidden ? '帖子已屏蔽（仅发布者和管理员可见）' : '帖子已取消屏蔽');
+  } else showToast('操作失败：' + ((res.data && res.data.error) || '请重试'));
+}
+
+// 帖子：置顶/取消置顶
+async function adminTogglePinPost(postId) {
+  const p = communityPosts.find(x => x.id === postId);
+  const action = p && isPinActive(p) ? 'unpin_post' : 'pin_post';
+  const res = await adminOp(action, { p_id: postId });
+  if (res.ok && res.data && res.data.ok) {
+    if (p) { p.is_pinned = !(p && isPinActive(p)); p.pinned_at = p.is_pinned ? new Date().toISOString() : null; }
+    renderCommunity();
+    showToast(p && p.is_pinned ? '帖子已置顶（7 天后自动取消）' : '帖子已取消置顶');
+  } else showToast('操作失败：' + ((res.data && res.data.error) || '请重试'));
+}
+
+// 帖子：管理员删除（弹确认）
+function adminAskDeletePost(postId) {
+  deleteTarget = { type: 'admin_post', id: postId };
+  openModal('modalDeleteConfirm');
+}
+
+// 评论：管理员删除
+async function adminDeleteComment(commentId, postId) {
+  const res = await adminOp('admin_delete_comment', { p_id: commentId });
+  if (res.ok && res.data && res.data.ok) {
+    if (communityComments[postId]) communityComments[postId] = communityComments[postId].filter(c => c.id !== commentId);
+    if (communityStats[postId] && communityStats[postId].comment_count > 0) communityStats[postId].comment_count--;
+    renderCommunity();
+    showToast('评论已删除');
+  } else showToast('删除失败');
+}
+
+// 评论：屏蔽/取消屏蔽
+async function adminToggleHideComment(commentId, postId) {
+  const c = (communityComments[postId] || []).find(x => x.id === commentId);
+  const action = c && c.is_hidden ? 'unhide_comment' : 'hide_comment';
+  const res = await adminOp(action, { p_id: commentId });
+  if (res.ok && res.data && res.data.ok) {
+    if (c) c.is_hidden = !c.is_hidden;
+    renderCommunity();
+  } else showToast('操作失败');
+}
+
+// 封禁：打开弹窗
+function openBanModal(userId, nickname) {
+  if (!isAdmin) return;
+  banTargetUser = { userId: userId, nickname: nickname };
+  banDurationSelected = '24h';
+  document.getElementById('banTargetNick').textContent = nickname + '（' + userId.slice(0, 8) + '…）';
+  document.getElementById('banReason').value = '';
+  document.querySelectorAll('#banDurationPicker .pc-chip').forEach(c => c.classList.toggle('active', c.dataset.bdur === '24h'));
+  openModal('modalBan');
+}
+
+// 封禁：选择时长
+function selectBanDur(dur) {
+  banDurationSelected = dur;
+  document.querySelectorAll('#banDurationPicker .pc-chip').forEach(c => c.classList.toggle('active', c.dataset.bdur === dur));
+}
+
+// 封禁：确认执行
+async function confirmBanUser() {
+  if (!banTargetUser) return;
+  const reason = document.getElementById('banReason').value.trim();
+  const res = await adminOp('ban_user', {
+    p_id: banTargetUser.userId,
+    p_duration: banDurationSelected,
+    p_reason: reason || null,
+    p_nickname: banTargetUser.nickname
+  });
+  if (res.ok && res.data && res.data.ok) {
+    closeModal('modalBan');
+    showToast('已封禁 ' + banTargetUser.nickname);
+    banTargetUser = null;
+  } else showToast('封禁失败：' + ((res.data && res.data.error) || '请重试'));
+}
+
+// 公告：打开弹窗
+function openAnnounceModal() {
+  if (!isAdmin) return;
+  document.getElementById('announceContent').value = '';
+  updateAnnounceCharCount();
+  openModal('modalAnnounce');
+}
+
+function updateAnnounceCharCount() {
+  const el = document.getElementById('announceCharCount');
+  const len = document.getElementById('announceContent').value.length;
+  el.textContent = len + '/500';
+}
+
+// 公告：发布（新公告自动置顶，旧公告取消置顶保留为普通帖）
+async function submitAnnouncement() {
+  const content = document.getElementById('announceContent').value.trim();
+  if (!content) { showToast('公告内容不能为空'); return; }
+  const res = await adminOp('announce', { p_content: content });
+  if (res.ok && res.data && res.data.ok) {
+    closeModal('modalAnnounce');
+    showToast('公告已发布 📢');
+    loadCommunityPosts(false); // 刷新列表显示新公告
+  } else showToast('发布失败：' + ((res.data && res.data.error) || '请重试'));
+}
+
+// 封禁状态检查（发帖/评论前调用；返回 null=未封禁，否则返回剩余时间描述）
+async function checkUserBan() {
+  if (isAdmin) return null; // 管理员不受封禁限制
+  const id = getIdentity();
+  const res = await sbRest('banned_users?select=*&user_id=eq.' + encodeURIComponent(id.userId));
+  if (!res.ok || !res.data || !res.data.length) return null;
+  const ban = res.data[0];
+  if (ban.banned_until && new Date(ban.banned_until).getTime() < Date.now()) return null; // 已过期
+  let timeDesc;
+  if (!ban.banned_until) timeDesc = '永久';
+  else {
+    const ms = new Date(ban.banned_until).getTime() - Date.now();
+    if (ms < 3600000) timeDesc = Math.ceil(ms / 60000) + ' 分钟';
+    else if (ms < 86400000) timeDesc = Math.ceil(ms / 3600000) + ' 小时';
+    else timeDesc = Math.ceil(ms / 86400000) + ' 天';
+  }
+  return { until: ban.banned_until, desc: timeDesc, reason: ban.reason };
+}
+
+function showBanBanner(ban) {
+  const existing = document.getElementById('banBanner');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.id = 'banBanner';
+  div.className = 'ban-status-banner';
+  div.innerHTML = '🚫 你已被封禁（剩余 ' + escapeHtml(ban.desc) + '）' + (ban.reason ? '<br>原因：' + escapeHtml(ban.reason) : '') + '<br>封禁期间无法发帖或评论';
+  const list = document.getElementById('communityList');
+  if (list) list.parentNode.insertBefore(div, list);
+}
+
+function hideBanBanner() {
+  const existing = document.getElementById('banBanner');
+  if (existing) existing.remove();
+}
+
+// 小黑屋：加载封禁列表（设置页）
+async function renderBannedUsers() {
+  const container = document.getElementById('bannedUserList');
+  if (!container) return;
+  const adminSection = document.getElementById('settingsBannedSection');
+  if (!isAdmin) { if (adminSection) adminSection.style.display = 'none'; return; }
+  if (adminSection) adminSection.style.display = '';
+  const res = await sbRest('banned_users?select=*&order=banned_at.desc');
+  if (!res.ok || !res.data) { container.innerHTML = '<div style="font-size:12px;color:var(--text-light);">加载失败</div>'; return; }
+  if (!res.data.length) { container.innerHTML = '<div style="font-size:12px;color:var(--text-light);">小黑屋空空如也，风平浪静</div>'; return; }
+  container.innerHTML = res.data.map(b => {
+    const expired = b.banned_until && new Date(b.banned_until).getTime() < Date.now();
+    let timeDesc;
+    if (!b.banned_until) timeDesc = '永久封禁';
+    else if (expired) timeDesc = '已到期（自动解封）';
+    else {
+      const ms = new Date(b.banned_until).getTime() - Date.now();
+      if (ms < 3600000) timeDesc = '剩 ' + Math.ceil(ms / 60000) + ' 分钟';
+      else if (ms < 86400000) timeDesc = '剩 ' + Math.ceil(ms / 3600000) + ' 小时';
+      else timeDesc = '剩 ' + Math.ceil(ms / 86400000) + ' 天';
+    }
+    return `
+      <div class="banned-user-row">
+        <div class="banned-user-info">
+          <div class="banned-user-nick">${escapeHtml(b.nickname || b.user_id.slice(0, 8))} ${expired ? '<span style="font-size:10px;color:var(--text-light);">（已到期）</span>' : ''}</div>
+          <div class="banned-user-meta">${escapeHtml(b.user_id.slice(0, 12))}… · ${escapeHtml(timeDesc)}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}</div>
+        </div>
+        <button class="admin-btn" onclick="adminUnbanUser('${escapeHtml(b.user_id)}')">解封</button>
+      </div>`;
+  }).join('');
+}
+
+// 小黑屋：解封
+async function adminUnbanUser(userId) {
+  const res = await adminOp('unban_user', { p_id: userId });
+  if (res.ok && res.data && res.data.ok) {
+    showToast('已解封');
+    renderBannedUsers();
+  } else showToast('解封失败');
+}
+
+// 管理员删除确认（复用 modalDeleteConfirm）
+async function confirmDeleteTarget() {
+  if (!communityReady || !deleteTarget) return;
+  const id = getIdentity();
+  closeModal('modalDeleteConfirm');
+  if (deleteTarget.type === 'admin_post') {
+    const res = await adminOp('admin_delete_post', { p_id: deleteTarget.id });
+    if (!res.ok || !res.data || !res.data.ok) { showToast('删除失败'); return; }
+    communityPosts = communityPosts.filter(p => p.id !== deleteTarget.id);
+    delete communityStats[deleteTarget.id];
+    if (expandedPostId === deleteTarget.id) expandedPostId = null;
+    showToast('帖子已删除');
+    renderCommunity();
+    deleteTarget = null;
+    return;
+  }
+  if (deleteTarget.type === 'post') {
+    const res = await sbRest('posts?id=eq.' + encodeURIComponent(deleteTarget.id) + '&user_id=eq.' + encodeURIComponent(id.userId), 'DELETE');
+    if (!res.ok) { showToast('删除失败'); return; }
+    communityPosts = communityPosts.filter(p => p.id !== deleteTarget.id);
+    delete communityStats[deleteTarget.id];
+    if (expandedPostId === deleteTarget.id) expandedPostId = null;
+    showToast('帖子已删除');
+  } else {
+    const res = await sbRest('comments?id=eq.' + encodeURIComponent(deleteTarget.id) + '&user_id=eq.' + encodeURIComponent(id.userId), 'DELETE');
+    if (!res.ok) { showToast('删除失败'); return; }
+    if (communityComments[deleteTarget.postId]) {
+      communityComments[deleteTarget.postId] = communityComments[deleteTarget.postId].filter(c => c.id !== deleteTarget.id);
+    }
+    if (communityStats[deleteTarget.postId] && communityStats[deleteTarget.postId].comment_count > 0) {
+      communityStats[deleteTarget.postId].comment_count--;
+    }
+    showToast('评论已删除');
+  }
+  renderCommunity();
+  deleteTarget = null;
+}
+
+// 发布帖子（封禁检查 + 公告分类拦截）
 async function submitPost() {
   if (!communityReady) return;
+  const ban = await checkUserBan();
+  if (ban) { showBanBanner(ban); showToast('你已被封禁，剩余 ' + ban.desc + '，无法发帖'); return; }
+  hideBanBanner();
   const now = Date.now();
   if (now - lastPostTime < 30000) { showToast('发太快啦，喝口水休息一下～'); return; }
   const raw = document.getElementById('postContent').value;
   const content = filterBadWords(raw.trim());
   if (!content) { showToast('帖子内容不能为空'); return; }
+  if (postCatSelected === '公告' && !isAdmin) { showToast('公告仅管理员可发布'); return; }
   const id = getIdentity();
   const res = await sbRest('posts', 'POST', { user_id: id.userId, nickname: id.nickname, content: content, category: postCatSelected }, 'return=representation');
-  if (!res.ok || !res.data || !res.data.length) { showToast('发布失败：' + (res.error || '请重试')); return; }
+  if (!res.ok || !res.data || !res.data.length) {
+    if (res.error && res.error.includes('ERR_BANNED')) { showToast('你已被封禁，无法发帖'); return; }
+    showToast('发布失败：' + (res.error || '请重试')); return;
+  }
   const data = res.data[0];
   lastPostTime = now;
   closeModal('modalPost');
@@ -2566,8 +2989,9 @@ function switchView(view) {
     if (!communityInitTried) initCommunity();
     if (communityReady && !communityLoadedOnce) loadCommunityPosts(false);
     else renderCommunity();
+    checkUserBan().then(ban => { if (ban) showBanBanner(ban); else hideBanBanner(); });
   }
-  if (view === 'settings') renderSettings();
+  if (view === 'settings') { renderSettings(); renderBannedUsers(); }
   // fab 按钮随视图变化
   const fabEl = document.getElementById('fab');
   if (fabEl) fabEl.textContent = view === 'community' ? '✏️' : '+';
@@ -6000,6 +6424,9 @@ function init() {
 
   // 帖子广场：首次预初始化（CDN 已加载时建立连接与实时订阅）
   initCommunity();
+
+  // 管理员身份探测（本地服务 → RPC 验证 → 7 天会话）
+  checkAdminStatus();
 }
 
 init();
