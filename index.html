@@ -1171,7 +1171,10 @@ body.drag-locking * {
   </div>
   <div class="community-me">
     <span id="communityMyNick" class="community-nick"></span>
-    <button class="community-nick-btn" onclick="changeNickname()">换昵称</button>
+    <div style="display:flex;gap:6px;">
+      <button class="community-nick-btn" onclick="openCustomName()">自拟昵称</button>
+      <button class="community-nick-btn" onclick="changeNickname()">换随机</button>
+    </div>
   </div>
   <div id="communityList"></div>
   <div id="communityOffline" style="display:none;">
@@ -1198,6 +1201,25 @@ body.drag-locking * {
       <textarea class="form-textarea" id="postContent" rows="5" maxlength="500" placeholder="分享点什么吧（500字以内）" oninput="updatePostCharCount()"></textarea>
     </div>
     <button class="btn-primary" onclick="submitPost()">发布</button>
+  </div>
+</div>
+
+<!-- ========== 自拟昵称弹窗 ========== -->
+<div class="modal-overlay" id="modalName">
+  <div class="modal-content" style="max-width:340px;">
+    <div class="modal-header">
+      <h2>设置自定义昵称</h2>
+      <button class="modal-close" onclick="closeModal('modalName')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">自定义昵称将显示在你的帖子和评论中，可随时用「换随机」切回随机昵称。包含违禁词的昵称无法设置。</p>
+    <div class="form-group">
+      <label class="form-label">昵称（1-12 字）</label>
+      <input class="form-input" id="customNameInput" maxlength="12" placeholder="请输入昵称" style="padding:12px;border-radius:10px;" />
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-primary" style="flex:1;background:#fff;color:var(--text);border:1px solid var(--border);" onclick="closeModal('modalName')">取消</button>
+      <button class="btn-primary" style="flex:1;" onclick="confirmCustomName()">确认</button>
+    </div>
   </div>
 </div>
 
@@ -1876,8 +1898,8 @@ const AVATAR_COLORS = ['#B8DCF5', '#C3E6B7', '#F8CDBE', '#FAE3A8', '#D9CBEA', '#
 function randomNickname() {
   return NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] + '的' + NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)];
 }
-// 基础敏感词表（用户可自行增删）
-const BAD_WORDS = ['加微信', '兼职刷单', '博彩', '赌博', '裸聊', '代考包过', '小额贷款'];
+// 基础敏感词表（用户可自行增删；发帖/评论内容过滤 + 昵称校验共用）
+const BAD_WORDS = ['加微信', '兼职刷单', '博彩', '赌博', '裸聊', '代考包过', '小额贷款', '广告', '代购', '刷单', '贷款', '外挂', '色情', '传销', '诈骗'];
 let communityChannel = null;        // 实时订阅 WebSocket
 let communityPolling = null;       // 轮询兑底定时器
 let communityReady = false;        // 云端是否可用
@@ -1894,21 +1916,61 @@ let communityInitTried = false;
 let communityLoadedOnce = false;
 let lastPostTime = 0;              // 发帖限流
 
-// 获取/生成本地匿名身份（userId 稳定不变，昵称可换）
+// 获取/生成本地匿名身份（userId 稳定不变，昵称可换；customName 为用户自拟昵称，null=随机模式）
 function getIdentity() {
   let id = null;
   try { id = JSON.parse(localStorage.getItem(COMMUNITY_IDENTITY_KEY)); } catch(e) {}
-  if (id && id.userId && id.nickname) return id;
+  if (id && id.userId && id.nickname) {
+    if (typeof id.customName === 'undefined') id.customName = null; // 旧数据兼容
+    return id;
+  }
   id = {
     userId: Math.random().toString(36).slice(2, 10) + Date.now().toString(36),
     nickname: randomNickname(),
+    customName: null,
     createdAt: new Date().toISOString()
   };
   try { localStorage.setItem(COMMUNITY_IDENTITY_KEY, JSON.stringify(id)); } catch(e) {}
   return id;
 }
 
-// 换随机昵称（userId 不变，历史帖昵称不回改）
+// 检查文本是否含违禁词，命中返回该词，否则 null
+function checkBadWord(text) {
+  if (!text) return null;
+  for (let i = 0; i < BAD_WORDS.length; i++) {
+    if (text.indexOf(BAD_WORDS[i]) >= 0) return BAD_WORDS[i];
+  }
+  return null;
+}
+
+// 打开自拟昵称弹窗（预填当前自拟昵称）
+function openCustomName() {
+  const id = getIdentity();
+  const input = document.getElementById('customNameInput');
+  if (input) input.value = id.customName || '';
+  openModal('modalName');
+  setTimeout(function() { if (input) input.focus(); }, 120);
+}
+
+// 确认自拟昵称：空值/超长/违禁词均拦截
+function confirmCustomName() {
+  const input = document.getElementById('customNameInput');
+  if (!input) return;
+  const name = (input.value || '').trim();
+  if (!name) { showToast('昵称不能为空'); return; }
+  if (name.length > 12) { showToast('昵称最长 12 个字'); return; }
+  const bad = checkBadWord(name);
+  if (bad) { showToast('昵称包含违禁词「' + bad + '」，请更换'); return; }
+  const id = getIdentity();
+  id.nickname = name;
+  id.customName = name;
+  try { localStorage.setItem(COMMUNITY_IDENTITY_KEY, JSON.stringify(id)); } catch(e) {}
+  closeModal('modalName');
+  renderCommunityMe();
+  showToast('自定义昵称已生效：' + name);
+}
+
+// 换随机昵称（userId 不变，历史帖昵称不回改；切回随机模式）
 function changeNickname() {
   const id = getIdentity();
   let next = randomNickname();
@@ -1916,6 +1978,7 @@ function changeNickname() {
   let guard = 0;
   while (next === id.nickname && guard < 10) { next = randomNickname(); guard++; }
   id.nickname = next;
+  id.customName = null; // 切回随机昵称模式
   try { localStorage.setItem(COMMUNITY_IDENTITY_KEY, JSON.stringify(id)); } catch(e) {}
   renderCommunityMe();
   showToast('已换昵称：' + id.nickname);
@@ -1923,7 +1986,10 @@ function changeNickname() {
 
 function renderCommunityMe() {
   const el = document.getElementById('communityMyNick');
-  if (el) el.textContent = '我的昵称：' + getIdentity().nickname;
+  if (el) {
+    const id = getIdentity();
+    el.textContent = '我的昵称：' + id.nickname + (id.customName ? '（自定义）' : '（随机）');
+  }
 }
 
 // 稳定哈希（头像颜色用）
