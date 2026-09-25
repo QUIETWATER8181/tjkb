@@ -438,6 +438,7 @@ ul { list-style: none; }
 #view-schedule .sg-handle-bottom {
   user-select: none; -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-user-modify: read-only; /* 安卓 WebView 加固：长按不可进入选择/编辑 */
   -webkit-tap-highlight-color: transparent;
 }
 /* 拖拽元素：禁止浏览器默认手势（长按呼出菜单/滑动选择） */
@@ -2389,6 +2390,27 @@ if (/MicroMessenger/i.test(navigator.userAgent)) {
     const wg = document.getElementById('wechatGuide');
     if (wg) wg.style.display = 'flex';
   });
+}
+
+// ===== 课表视图防误选守卫（全局定义，桌面/触摸/拖拽共用；JS 事件级封锁不依赖 CSS 遵守度）=====
+function _isEditableTarget(el) {
+  return !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]'));
+}
+function _clearScheduleSelection() {
+  var sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+  var node = sel.anchorNode;
+  if (!node) return;
+  var el = node.nodeType === 1 ? node : node.parentElement;
+  if (!el || _isEditableTarget(el)) return;
+  if (el.closest && el.closest('#view-schedule')) {
+    sel.removeAllRanges();
+    if (sel.empty) sel.empty(); // 兼容旧内核
+  }
+}
+var _selectionGuardTimer = null;
+function _stopSelectionGuard() {
+  if (_selectionGuardTimer) { clearInterval(_selectionGuardTimer); _selectionGuardTimer = null; }
 }
 
 let appData = { courses: [], reminders: [], settings: { semesterName: '', semesterStart: '', totalWeeks: 16, breakAfter: { 4: '午 休', 8: '晚 休' }, notifyEnabled: true }, points: 0, checkins: [] };
@@ -5388,6 +5410,7 @@ function bindScheduleInteractions() {
         dragState.longPressed = true;
         dragState.mode = 'move';
         document.body.classList.add('drag-locking'); // 全局封锁文本选择（拖拽期间）
+        _clearScheduleSelection(); // 拖拽开始抢跑清除任何残留选区
         dragState.courseEl = courseEl;
         // 原方块变淡，加放大脉冲提示拖拽开始
         courseEl.classList.add('dragging');
@@ -5632,9 +5655,6 @@ function bindGlobalScheduleEvents() {
   //       另：内联 onselectstart/oncontextmenu 在部分 WebView 上触发不可靠，
   //       需在 document 级 capture 阶段用 addEventListener 兜底。
   var _touchLockTimer = null;
-  function _isEditableTarget(el) {
-    return !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]'));
-  }
   // 触摸期间：课表视图一律全局封锁（不等长按检测，覆盖网格所有区域）
   document.addEventListener('touchstart', function(e) {
     if (currentView !== 'schedule' || _isEditableTarget(e.target)) return;
@@ -5647,6 +5667,7 @@ function bindGlobalScheduleEvents() {
       if (_touchLockTimer) clearTimeout(_touchLockTimer);
       _touchLockTimer = setTimeout(function() {
         _touchLockTimer = null;
+        _clearScheduleSelection(); // 松手时清除残留选中（竞态兜底）
         // 拖拽进行中则保持锁定（由拖拽逻辑自行管理解锁）
         if (!dragState || !dragState.mode) document.body.classList.remove('drag-locking');
       }, 150);
@@ -5662,17 +5683,17 @@ function bindGlobalScheduleEvents() {
     if (currentView !== 'schedule' || _isEditableTarget(e.target)) return;
     e.preventDefault();
   }, true);
-  // selectionchange：终极兜底——系统若已发起选择则立即清除（仅限课表视图内的选区，
-  // 弹窗 overlay / input / textarea 不在 #view-schedule 内，不受影响）
+  // selectionchange + 轮询守卫（守卫函数定义于脚本顶层，桌面端共用）
   document.addEventListener('selectionchange', function() {
     if (currentView !== 'schedule') return;
-    var sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
-    var node = sel.anchorNode;
-    if (!node) return;
-    var el = node.nodeType === 1 ? node : node.parentElement;
-    if (!el || _isEditableTarget(el)) return;
-    if (el.closest && el.closest('#view-schedule')) sel.removeAllRanges();
+    _clearScheduleSelection();
+    if (!_selectionGuardTimer) {
+      _selectionGuardTimer = setInterval(function() {
+        if (currentView !== 'schedule') { _stopSelectionGuard(); return; }
+        _clearScheduleSelection();
+      }, 120);
+      setTimeout(_stopSelectionGuard, 1500);
+    }
   });
 
   // 触摸事件支持（移动端长按拖拽）
@@ -5704,6 +5725,7 @@ function bindGlobalScheduleEvents() {
       dragState.longPressed = true;
       dragState.mode = 'move';
       document.body.classList.add('drag-locking'); // 全局封锁文本选择（拖拽期间）
+      _clearScheduleSelection(); // 拖拽开始抢跑清除任何残留选区
       dragState.courseEl = courseEl;
       courseEl.classList.add('dragging');
       courseEl.classList.add('dragging-pulse');
