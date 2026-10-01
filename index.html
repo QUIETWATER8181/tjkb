@@ -1323,6 +1323,25 @@ body.drag-locking * {
   </div>
 </div>
 
+<!-- ========== 管理员：手动激活弹窗（连点昵称区 5 次触发） ========== -->
+<div class="modal-overlay" id="modalAdminKey">
+  <div class="modal-content" style="max-width:360px;">
+    <div class="modal-header">
+      <h2>管理员激活</h2>
+      <button class="modal-close" onclick="closeModal('modalAdminKey')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">输入管理员密钥（admin.key 文件的内容），验证通过后 7 天内免验证。<br>若提示"功能未初始化"，请先在 Supabase SQL Editor 执行 admin-setup.sql。</p>
+    <div class="form-group">
+      <label class="form-label">管理员密钥</label>
+      <input class="form-input" id="adminKeyInput" placeholder="tjkb-admin-..." style="padding:12px;border-radius:10px;" />
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-primary" style="flex:1;background:#fff;color:var(--text);border:1px solid var(--border);" onclick="closeModal('modalAdminKey')">取消</button>
+      <button class="btn-primary" style="flex:1;" onclick="confirmAdminKey()">激活</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========== 设置 ========== -->
 <div class="view" id="view-settings">
   <div class="settings-group">
@@ -1697,12 +1716,14 @@ async function checkAdminStatus() {
       if (verify.ok && verify.data && verify.data.ok) {
         isAdmin = true;
         adminKey = session.key;
+        console.log('[admin] 会话恢复成功');
         return;
       }
       // 密钥已失效，清除会话
       localStorage.removeItem(ADMIN_SESSION_KEY);
+      console.warn('[admin] 已存会话验证失败（SQL 未执行或密钥已更换），会话清除');
     }
-  } catch(e) {}
+  } catch(e) { console.warn('[admin] 会话恢复异常:', e.message); }
   // 2. 无有效会话 → 探测本地服务
   try {
     const controller = new AbortController();
@@ -1718,10 +1739,57 @@ async function checkAdminStatus() {
           adminKey = data.key;
           localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ key: data.key, expires: Date.now() + ADMIN_SESSION_DURATION }));
           if (typeof renderCommunityMe === 'function') renderCommunityMe();
+          console.log('[admin] 本地服务探测成功，管理员已激活');
+        } else {
+          console.warn('[admin] 本地服务返回密钥但服务端验证失败（SQL 未执行？status=' + verify.status + '）');
         }
       }
     }
-  } catch(e) { /* 本地服务未运行 = 非管理员，静默 */ }
+  } catch(e) {
+    // 本地服务未运行 / 浏览器拒绝 loopback 访问（PNA/LNA 权限未允许）= 非管理员
+    console.warn('[admin] 本地服务探测失败（服务未运行或浏览器未授权本地网络访问）:', e.message);
+  }
+}
+
+// ===== 管理员手动激活兜底（连点昵称区 5 次触发，不依赖本地服务/浏览器权限）=====
+function setupAdminManualEntry() {
+  const el = document.getElementById('communityMyNick');
+  if (!el || el.dataset.adminEntry) return;
+  el.dataset.adminEntry = '1';
+  let taps = 0, lastTap = 0;
+  el.addEventListener('click', function() {
+    const now = Date.now();
+    if (now - lastTap > 800) taps = 0; // 间隔超时重新计数（防误触）
+    lastTap = now;
+    taps++;
+    if (taps >= 5) { taps = 0; openAdminKeyModal(); }
+  });
+}
+
+function openAdminKeyModal() {
+  const input = document.getElementById('adminKeyInput');
+  if (input) input.value = '';
+  openModal('modalAdminKey');
+}
+
+// 手动输入密钥激活（RPC verify 通过后存 7 天会话）
+async function confirmAdminKey() {
+  const input = document.getElementById('adminKeyInput');
+  const key = (input && input.value || '').trim();
+  if (!key) { showToast('请输入管理员密钥'); return; }
+  const verify = await sbRest('rpc/admin_op', 'POST', { p_admin_key: key, p_action: 'verify' });
+  if (verify.ok && verify.data && verify.data.ok) {
+    isAdmin = true;
+    adminKey = key;
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ key: key, expires: Date.now() + ADMIN_SESSION_DURATION }));
+    closeModal('modalAdminKey');
+    renderCommunityMe();
+    showToast('管理员已激活 👑（7 天内免验证）');
+  } else if (verify.status === 404) {
+    showToast('管理员功能未初始化：请先在 Supabase SQL Editor 执行 admin-setup.sql');
+  } else {
+    showToast('密钥错误，请检查 admin.key 文件内容');
+  }
 }
 
 // 管理员操作统一入口（走 RPC 验证）
@@ -6427,6 +6495,8 @@ function init() {
 
   // 管理员身份探测（本地服务 → RPC 验证 → 7 天会话）
   checkAdminStatus();
+  // 管理员手动激活兜底入口（连点昵称区 5 次 → 密钥输入弹窗）
+  setupAdminManualEntry();
 }
 
 init();
